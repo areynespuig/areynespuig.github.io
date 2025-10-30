@@ -28,7 +28,7 @@
         greeting: "¡Hola! Soy",
         subtitle: "Ingeniero Informático especializado en desarrollo web.",
         cta: "Ver proyectos",
-        cv: "Ver currículum"
+        cv: "Descargar currículum"
       },
       about: {
         title: "Sobre mí",
@@ -52,7 +52,7 @@
         title: "Experiencia",
         item1_title: "Técnico IT — Ajuntament de l'Escala (Prácticas)",
         item1_text: "Soporte en mantenimiento de equipos, resolución de incidencias, instalación de software y ayuda en gestión de redes y sistemas.",
-        item2_title: "Frontend Developer — Accenture (Prácticas)",
+        item2_title: "Desarrollador frontend — Accenture (Prácticas)",
         item2_text: "Mantenimiento de aplicaciones web, soporte en diseño de interfaces e implementación de funcionalidades con tecnologías frontend."
       },
       projects: {
@@ -74,7 +74,7 @@
         greeting: "Hola! Sóc l'",
         subtitle: "Enginyer Informàtic especialitzat en desenvolupament web.",
         cta: "Veure projectes",
-        cv: "Veure currículum"
+        cv: "Descarregar currículum"
       },
       about: {
         title: "Sobre mi",
@@ -98,7 +98,7 @@
         title: "Experiència",
         item1_title: "Tècnic IT — Ajuntament de l'Escala (Pràctiques)",
         item1_text: "Suport en manteniment d'equips, resolució d'incidències, instal·lació de programari i ajuda en gestió de xarxes i sistemes.",
-        item2_title: "Frontend Developer — Accenture (Pràctiques)",
+        item2_title: "Desenvolupador Frontend — Accenture (Pràctiques)",
         item2_text: "Manteniment d'aplicacions web, suport en disseny d'interfícies i implementació de funcionalitats amb tecnologies frontend."
       },
       projects: {
@@ -118,7 +118,7 @@
         greeting: "Hi! I'm",
         subtitle: "Computer Engineering student focused on web development.",
         cta: "View projects",
-        cv: "View résumé"
+        cv: "Download résumé"
       },
       about: {
         title: "About",
@@ -173,7 +173,7 @@
     });
   }
 
-  const storedLang = localStorage.getItem('lang') || 'es';
+  const storedLang = localStorage.getItem('lang') || 'en';
   applyLang(storedLang);
 
   langButtons.forEach(btn => {
