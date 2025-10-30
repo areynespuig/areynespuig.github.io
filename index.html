@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portfolio — Albert Reynés</title>
+  <meta name="description" content="Portfolio de Albert Reynés: estudios, experiencia, proyectos y contacto." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="container layout-row space-between align-center">
+      <a href="#home" class="brand">
+        <strong>Albert Reynés Puig</strong>
+      </a>
+
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#about" data-i18n="nav.about">Sobre mí</a>
+        <a href="#education" data-i18n="nav.education">Educación</a>
+        <a href="#experience" data-i18n="nav.experience">Experiencia</a>
+        <a href="#projects" data-i18n="nav.projects">Proyectos</a>
+        <a href="#contact" data-i18n="nav.contact">Contacto</a>
+      </nav>
+
+      <div class="nav-actions">
+        <div class="lang-switch" role="group" aria-label="Language switcher">
+          <button class="chip is-active" data-lang="es">ES</button>
+          <button class="chip" data-lang="ca">CA</button>
+          <button class="chip" data-lang="en">EN</button>
+        </div>
+
+        <button id="themeToggle" class="icon-button" aria-label="Toggle theme" title="Tema claro/oscuro">
+          <span class="icon-sun" aria-hidden="true">☀️</span>
+          <span class="icon-moon" aria-hidden="true">🌙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section id="home" class="hero-section">
+    <div class="container hero-grid">
+      <div class="hero-text">
+        <span class="badge" data-i18n="hero.availability">Disponible para colaboraciones · Cataluña</span>
+        <h1 class="hero-title">
+          <span data-i18n="hero.greeting">¡Hola! Soy</span>
+          <span class="text-gradient">Albert Reynés Puig</span>
+        </h1>
+        <p class="hero-subtitle" data-i18n="hero.subtitle">
+          Ingeniero Informático especializado en sistemas y desarrollo moderno.
+        </p>
+        <div class="hero-cta">
+          <a href="#projects" class="button" data-i18n="hero.cta">Ver proyectos</a>
+          <a href="#contact" class="button" data-i18n="hero.secondary">Contactar</a>
+          <a href="https://www.linkedin.com/in/albert-reyn%C3%A9s-puig-120588361/" class="button">LinkedIn</a>
+          <a href="https://github.com/areynespuig" class="button">GitHub</a>
+        </div>
+      </div>
+      <div class="hero-photo">
+        <div class="avatar-ring">
+          <img src="foto.jpg" alt="Foto de Albert Reynés" loading="eager">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section id="about" class="section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="about.title">Sobre mí</h2>
+      <div class="card-grid">
+        <article class="card-box">
+          <h3 class="card-title" data-i18n="about.who_title">¿Quién soy?</h3>
+          <p data-i18n="about.who_text">
+            Soy estudiante de ingeniería informática especializado en sistemas y desarrollo web. Me gusta crear aplicaciones modernas, accesibles y eficientes cuidando tanto el diseño como la arquitectura del código.
+          </p>
+        </article>
+        <article class="card-box">
+          <h3 class="card-title" data-i18n="about.skills_title">Competencias clave</h3>
+          <ul class="list">
+            <li data-i18n="about.skill1">HTML, CSS, JavaScript (ES6+), React/Vue</li>
+            <li data-i18n="about.skill2">Node.js, Express, MongoDB/MySQL</li>
+            <li data-i18n="about.skill3">Algoritmos y estructuras de datos</li>
+            <li data-i18n="about.skill4">Linux, Docker, entornos de desarrollo</li>
+            <li data-i18n="about.skill5">Git y despliegues (Vercel/Netlify/AWS)</li>
+            <li data-i18n="about.skill6">Buenas prácticas y metodologías ágiles</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Education -->
+  <section id="education" class="section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="education.title">Educación</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <h3 data-i18n="education.item1_title">Grado en Ingeniería Informática — Universitat de Girona</h3>
+          <p class="muted">2023–Presente</p>
+        </div>
+        <div class="timeline-item">
+          <h3 data-i18n="education.item2_title">CFGS Desarrollo de Aplicaciones Web — Institut Montilivi</h3>
+          <p class="muted">2020–2022</p>
+        </div>
+        <div class="timeline-item">
+          <h3 data-i18n="education.item3_title">CFGM Sistemas Microinformáticos y Redes — Institut Cendrassos</h3>
+          <p class="muted">2018–2020</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Experience -->
+  <section id="experience" class="section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="experience.title">Experiencia</h2>
+      <div class="card-stack">
+        <article class="experience-card">
+          <h3 data-i18n="experience.item1_title">Técnico IT — Ajuntament de l'Escala (Prácticas)</h3>
+          <p data-i18n="experience.item1_text">
+            Soporte en mantenimiento de equipos, resolución de incidencias, instalación de software y ayuda en gestión de redes y sistemas.
+          </p>
+        </article>
+        <article class="experience-card">
+          <h3 data-i18n="experience.item2_title">Frontend Developer — Accenture (Prácticas)</h3>
+          <p data-i18n="experience.item2_text">
+            Mantenimiento de aplicaciones web, soporte en diseño de interfaces e implementación de funcionalidades con tecnologías frontend.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Projects (horizontal scroll) -->
+  <section id="projects" class="section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="projects.title">Proyectos</h2>
+      <div class="carousel" role="region" aria-label="Proyectos">
+        <article class="project-card">
+          <div class="project-thumb">
+            <img src="fundacio-cat.png" alt="Imatge de la fundació .cat">
+          </div>
+          <h3 class="project-title">Salutsegura.cat</h3>
+          <p class="project-desc" data-i18n="projects.p1_desc">Salutsegura.cat fue la web para el concurso WAPPS de la fundación .cat, la cual obtubo la primera plaza en 2020</p>
+          <div class="project-actions">
+            <a href="https://www.youtube.com/watch?v=Pdbn2raCNNk" class="button button-ghost" data-i18n="projects.view">Ver</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section id="contact" class="section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="contact.title">Contacto</h2>
+      <form class="form" netlify>
+        <label for="name" data-i18n="contact.name">Nombre</label>
+        <input id="name" name="name" required />
+
+        <label for="email" data-i18n="contact.email">Email</label>
+        <input id="email" name="email" type="email" required />
+
+        <label for="message" data-i18n="contact.message">Mensaje</label>
+        <textarea id="message" name="message" rows="5" required></textarea>
+
+        <button class="button button-primary" type="submit" data-i18n="contact.send">Enviar</button>
+      </form>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <small>© <span id="year"></span> Albert Reynés. <span data-i18n="footer.made">Hecho con HTML y CSS.</span></small>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
