@@ -65,7 +65,7 @@
       contact: {
         title: "Contacto", name: "Nombre", email: "Email", message: "Mensaje", send: "Enviar"
       },
-      footer: { made: "Hecho con HTML y CSS." }
+      footer: { made: "Hecho con HTML, CSS y JavaScript." }
     },
     ca: {
       nav: { about: "Sobre mi", education: "Educació", experience: "Experiència", projects: "Projectes", contact: "Contacte" },
@@ -109,7 +109,7 @@
       contact: {
         title: "Contacte", name: "Nom", email: "Email", message: "Missatge", send: "Enviar"
       },
-      footer: { made: "Fet amb HTML i CSS." }
+      footer: { made: "Fet amb HTML, CSS i JavaScript." }
     },
     en: {
       nav: { about: "About", education: "Education", experience: "Experience", projects: "Projects", contact: "Contact" },
@@ -153,7 +153,7 @@
       contact: {
         title: "Contact", name: "Name", email: "Email", message: "Message", send: "Send"
       },
-      footer: { made: "Made with HTML & CSS." }
+      footer: { made: "Made with HTML, CSS & JavaScript." }
     }
   };
 
