@@ -28,7 +28,7 @@
         greeting: "¡Hola! Soy",
         subtitle: "Ingeniero Informático especializado en desarrollo web.",
         cta: "Ver proyectos",
-        secondary: "Contactar",
+        cv: "Ver currículum"
       },
       about: {
         title: "Sobre mí",
@@ -74,7 +74,7 @@
         greeting: "Hola! Sóc l'",
         subtitle: "Enginyer Informàtic especialitzat en desenvolupament web.",
         cta: "Veure projectes",
-        secondary: "Contactar",
+        cv: "Veure currículum"
       },
       about: {
         title: "Sobre mi",
@@ -118,7 +118,7 @@
         greeting: "Hi! I'm",
         subtitle: "Computer Engineering student focused on web development.",
         cta: "View projects",
-        secondary: "Contact",
+        cv: "View résumé"
       },
       about: {
         title: "About",
