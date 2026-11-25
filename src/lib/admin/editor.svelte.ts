@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError, type SupabaseClient } from '@supabase/supabase-js';
 import bundled from '../content/site.json';
 import { LANGS, type CollectionKey, type L10n, type Lang, type SiteContent } from '../content/types';
 import { SUPABASE } from '../config';
@@ -133,6 +133,22 @@ export function formatDate(iso: string): string {
 }
 
 class PublishError extends Error {}
+
+/** Explica por qué ha fallado la función «publish», con el mensaje que devuelve la propia función. */
+async function functionErrorMessage(error: unknown): Promise<string> {
+	if (error instanceof FunctionsHttpError) {
+		try {
+			const body = (await error.context.json()) as { error?: string };
+			if (body?.error) return `Motivo: ${body.error}`;
+		} catch {
+			/* respuesta sin JSON */
+		}
+		return `Motivo: la función ha respondido con un error ${error.context.status}.`;
+	}
+	if (error instanceof FunctionsRelayError) return 'Motivo: Supabase no ha podido ejecutar la función. Comprueba que «publish» está desplegada.';
+	if (error instanceof FunctionsFetchError) return 'Motivo: no se ha podido contactar con la función. Revisa tu conexión.';
+	return '';
+}
 
 export class Editor {
 	published = $state<SiteContent>(copy(bundled as SiteContent));
@@ -531,20 +547,25 @@ export class Editor {
 		}
 	}
 
+	/**
+	 * Pide a GitHub que vuelva a generar el HTML de la web. Los visitantes ya ven lo publicado
+	 * (la web lee Supabase al abrirse); esto sirve para que los buscadores vean la versión nueva.
+	 */
 	async rebuild(afterSave = false) {
 		if (!this.#supabase) return;
 		const { error } = await this.#supabase.functions.invoke('publish', { method: 'POST' });
 		if (error) {
+			const reason = await functionErrorMessage(error);
 			this.needsRebuild = true;
 			this.notify(
 				afterSave
-					? 'Guardado en Supabase, pero GitHub no ha recibido el aviso para actualizar la web. Pulsa «Actualizar la web» para reintentarlo.'
-					: 'GitHub no ha recibido el aviso para actualizar la web. Vuelve a intentarlo en unos minutos.',
+					? `Publicado: ya se ve en la web. Pero GitHub no ha regenerado la versión para buscadores. ${reason}`
+					: `GitHub no ha regenerado la web. ${reason}`,
 				'error'
 			);
 			return;
 		}
 		this.needsRebuild = false;
-		this.notify(afterSave ? 'Publicado. La web se actualizará en uno o dos minutos.' : 'Hecho. La web se actualizará en uno o dos minutos.', 'ok');
+		this.notify(afterSave ? 'Publicado. Ya se ve en la web.' : 'Hecho. GitHub regenerará la web en uno o dos minutos.', 'ok');
 	}
 }
