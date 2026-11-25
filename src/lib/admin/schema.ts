@@ -16,7 +16,9 @@ export type FieldDef =
 	| { key: string; label: string; type: 'text' | 'url'; placeholder?: string }
 	| { key: string; label: string; type: 'year' }
 	| { key: string; label: string; type: 'bool' }
-	| { key: string; label: string; type: 'image' | 'pdf'; hint?: string };
+	| { key: string; label: string; type: 'image' | 'pdf'; hint?: string }
+	/** Zoom y posición de una imagen dentro de su recuadro; `image` es el campo con la imagen. */
+	| { key: string; label: string; type: 'imageFrame'; image: string };
 
 export interface TargetInfo {
 	target: string;
@@ -102,6 +104,18 @@ export function itemTitle(collection: CollectionKey, item: Education | Experienc
 /** Traduce un identificador de bloque («hero.subtitle», «projects:salutsegura»…) a lo que se puede editar. */
 export function resolveTarget(c: SiteContent, target: string): TargetInfo | null {
 	switch (target) {
+		case 'photo':
+			return {
+				target,
+				title: 'Foto de perfil',
+				section: 'inicio',
+				obj: c.profile,
+				fields: [
+					{ key: 'photo', label: 'Imagen', type: 'image' },
+					{ key: 'photoFrame', label: 'Encuadre', type: 'imageFrame', image: 'photo' },
+					{ key: 'photoAlt', label: 'Descripción de la foto', type: 'l10n' }
+				]
+			};
 		case 'profile':
 			return {
 				target,
@@ -110,8 +124,6 @@ export function resolveTarget(c: SiteContent, target: string): TargetInfo | null
 				obj: c.profile,
 				fields: [
 					{ key: 'name', label: 'Nombre', type: 'text' },
-					{ key: 'photo', label: 'Foto', type: 'image' },
-					{ key: 'photoAlt', label: 'Descripción de la foto', type: 'l10n' },
 					{ key: 'cv', label: 'Currículum', type: 'pdf', hint: 'Es el archivo del botón «Descargar currículum».' },
 					{ key: 'linkedin', label: 'LinkedIn', type: 'url', placeholder: 'https://www.linkedin.com/in/…' },
 					{ key: 'github', label: 'GitHub', type: 'url', placeholder: 'https://github.com/…' }
@@ -152,6 +164,7 @@ export function resolveTarget(c: SiteContent, target: string): TargetInfo | null
 export function allTargets(c: SiteContent): string[] {
 	return [
 		'profile',
+		'photo',
 		'hero.availability',
 		'hero.greeting',
 		'hero.subtitle',

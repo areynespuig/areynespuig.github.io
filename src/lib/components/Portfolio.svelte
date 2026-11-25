@@ -6,6 +6,7 @@
 	import Editable from './Editable.svelte';
 	import { useEditor } from './editor-context';
 	import { safeHref } from '../content/urls';
+	import { frameTransform } from '../content/photo';
 
 	let {
 		content,
@@ -131,15 +132,17 @@
 						</h1>
 					</Editable>
 				</div>
-				<Editable target="profile" label="Foto de perfil" as="div">
-					<img
-						class="photo"
-						src={asset(content.profile.photo)}
-						alt={pick(content.profile.photoAlt, lang)}
-						width="480"
-						height="600"
-						fetchpriority="high"
-					/>
+				<Editable target="photo" label="Foto de perfil" as="div">
+					<div class="photo">
+						<img
+							src={asset(content.profile.photo)}
+							alt={pick(content.profile.photoAlt, lang)}
+							width="480"
+							height="600"
+							fetchpriority="high"
+							style:transform={frameTransform(content.profile.photoFrame)}
+						/>
+					</div>
 				</Editable>
 			</div>
 
@@ -549,14 +552,19 @@
 		border-color: var(--hero-ink);
 		color: var(--hero);
 	}
+	/* El recuadro de la foto no cambia; el encuadre del editor mueve y escala la imagen dentro. */
 	.photo {
-		display: block;
 		width: clamp(8rem, 17cqi, 15rem);
-		height: auto;
 		aspect-ratio: 4 / 5;
-		object-fit: cover;
 		border-radius: 14px;
+		overflow: hidden;
 		background: color-mix(in oklch, var(--hero-ink) 15%, var(--hero));
+	}
+	.photo img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 	.actions {
 		margin-top: 2.25rem;

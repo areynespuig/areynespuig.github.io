@@ -51,6 +51,12 @@ function same(a: unknown, b: unknown): boolean {
 function flatten(content: SiteContent): Map<string, string> {
 	const out = new Map<string, string>();
 	const walk = (value: unknown, path: string) => {
+		if (value === undefined) return;
+		// El encuadre de la foto (zoom y posición) cuenta como un solo cambio.
+		if (path.endsWith('.photoFrame')) {
+			out.set(path, JSON.stringify(value));
+			return;
+		}
 		if (Array.isArray(value)) {
 			if (value.length && typeof value[0] === 'object' && value[0] && 'id' in value[0]) {
 				out.set(`${path}#order`, value.map((i) => i.id).join(','));
@@ -184,8 +190,8 @@ export class Editor {
 
 	// Sesión y carga
 
-	async init(options: { allowOffline: boolean }) {
-		this.#supabase = getSupabase();
+	async init(options: { allowOffline: boolean; forceOffline?: boolean }) {
+		this.#supabase = options.forceOffline ? null : getSupabase();
 		if (!this.#supabase) {
 			if (options.allowOffline) {
 				this.offline = true;
@@ -407,6 +413,8 @@ export class Editor {
 		const dataUrl = await readFile(file);
 		this.pending[publicPath] = { publicPath, storagePath: `uploads/${name}`, dataUrl, name: file.name };
 		info.obj[key] = publicPath;
+		// Una foto nueva empieza centrada y sin zoom.
+		if (key === 'photo') delete info.obj.photoFrame;
 	}
 
 	add(collection: CollectionKey) {
