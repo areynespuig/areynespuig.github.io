@@ -6,7 +6,7 @@
 
 	let dialog = $state<HTMLDialogElement>();
 	let token = $state('');
-	let remember = $state(true);
+	let remember = $state(false);
 	let error = $state<string | null>(null);
 	let checking = $state(false);
 
@@ -42,13 +42,18 @@
 				(se abre en una pestaña nueva).
 			</li>
 			<li>En «Repository access», elige «Only select repositories» y marca {SITE.repo}.</li>
+			<li>En «Expiration», elige una caducidad corta, por ejemplo 30 días.</li>
 			<li>En «Permissions», da a «Contents» acceso «Read and write».</li>
 			<li>Genera el token, cópialo y pégalo aquí.</li>
 		</ol>
 		<label for="conn-token">Token</label>
 		<input id="conn-token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" bind:value={token} />
 		<label class="check"><input type="checkbox" bind:checked={remember} /> Recordar en este navegador</label>
-		<p class="note">El token solo se guarda en este navegador y solo se envía a GitHub. Puedes borrarlo con «Desconectar».</p>
+		<p class="note">
+			El token solo se envía a GitHub. Sin «Recordar», se borra al cerrar la pestaña. Si lo recuerdas, queda guardado en este
+			navegador y podría leerlo cualquier página publicada en {SITE.owner}.github.io, así que no lo marques en ordenadores
+			compartidos. Puedes borrarlo en cualquier momento con «Desconectar».
+		</p>
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
 		<div class="buttons">
 			<button type="button" class="btn" onclick={() => dialog?.close()}>Cancelar</button>
