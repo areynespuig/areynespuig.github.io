@@ -1,11 +1,10 @@
 <script lang="ts">
 	import Portfolio from '#lib/components/Portfolio.svelte';
 	import SiteHead from '#lib/components/SiteHead.svelte';
-	import data from '#lib/content/site.json';
-	import type { SiteContent } from '#lib/content/types.ts';
+	import type { PageProps } from './$types';
 
-	const content = data as SiteContent;
+	let { data }: PageProps = $props();
 </script>
 
-<SiteHead lang="en" {content} />
-<Portfolio lang="en" {content} />
+<SiteHead lang="en" content={data.content} />
+<Portfolio lang="en" content={data.content} />

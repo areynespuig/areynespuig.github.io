@@ -5,6 +5,7 @@
 	import { LANG_NAMES, LANG_PATHS, UI, pick, pickList } from '../i18n';
 	import Editable from './Editable.svelte';
 	import { useEditor } from './editor-context';
+	import { safeHref } from '../content/urls';
 
 	let {
 		content,
@@ -41,6 +42,10 @@
 	}
 	function asset(src: string): string {
 		return editor ? editor.asset(src) : src;
+	}
+	/** Enlaces del contenido: en la web solo se aceptan http(s) y mailto. */
+	function link(url: string): string | undefined {
+		return editor ? editor.asset(url) : safeHref(url);
 	}
 	function years(start: number | null, end: number | null, ongoing: boolean): string {
 		if (start == null) return '';
@@ -170,12 +175,12 @@
 
 			<Editable target="profile" label="Currículum y enlaces" as="div" block>
 				<div class="actions">
-					<a class="btn primary" href={asset(content.profile.cv)} download>
+					<a class="btn primary" href={link(content.profile.cv)} download>
 						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>
 						{ui.cv}
 					</a>
-					<a class="btn" href={content.profile.linkedin} rel="me noopener" target="_blank">LinkedIn<span class="visually-hidden"> {ui.newTab}</span></a>
-					<a class="btn" href={content.profile.github} rel="me noopener" target="_blank">GitHub<span class="visually-hidden"> {ui.newTab}</span></a>
+					<a class="btn" href={link(content.profile.linkedin)} rel="me noopener" target="_blank">LinkedIn<span class="visually-hidden"> {ui.newTab}</span></a>
+					<a class="btn" href={link(content.profile.github)} rel="me noopener" target="_blank">GitHub<span class="visually-hidden"> {ui.newTab}</span></a>
 				</div>
 			</Editable>
 		</div>
@@ -284,7 +289,7 @@
 											{#if item.year}<p class="year">{item.year}</p>{/if}
 											<p>{@render say(item.description)}</p>
 											{#if item.url}
-												<a href={item.url} target="_blank" rel="noopener">
+												<a href={link(item.url)} target="_blank" rel="noopener">
 													{ui.viewProject}<span class="visually-hidden"> {item.title} {ui.newTab}</span>
 												</a>
 											{/if}
@@ -306,9 +311,9 @@
 		<div class="wrap foot-grid">
 			<p>© 2026 {content.profile.name}. {ui.made}</p>
 			<ul class="foot-links">
-				<li><a href={content.profile.linkedin} rel="me noopener" target="_blank">LinkedIn<span class="visually-hidden"> {ui.newTab}</span></a></li>
-				<li><a href={content.profile.github} rel="me noopener" target="_blank">GitHub<span class="visually-hidden"> {ui.newTab}</span></a></li>
-				<li><a href={asset(content.profile.cv)} download>{ui.cv}</a></li>
+				<li><a href={link(content.profile.linkedin)} rel="me noopener" target="_blank">LinkedIn<span class="visually-hidden"> {ui.newTab}</span></a></li>
+				<li><a href={link(content.profile.github)} rel="me noopener" target="_blank">GitHub<span class="visually-hidden"> {ui.newTab}</span></a></li>
+				<li><a href={link(content.profile.cv)} download>{ui.cv}</a></li>
 			</ul>
 			{#if !editing}
 				<ul class="foot-links" aria-label={ui.langLabel}>

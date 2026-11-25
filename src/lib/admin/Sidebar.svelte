@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { Lang } from '../content/types';
-	import { SITE } from '../config';
-	import type { Editor } from './editor.svelte';
+	import { formatDate, type Editor } from './editor.svelte';
 	import { resolveTarget, SECTIONS } from './schema';
 
 	let { editor }: { editor: Editor } = $props();
@@ -100,24 +99,44 @@
 		</div>
 	</section>
 
-	<section aria-labelledby="gh-h" class="gh">
-		<h2 id="gh-h">GitHub</h2>
-		{#if editor.token}
-			<p>Conectado. «Publicar» guarda los cambios en {SITE.owner}/{SITE.repo}.</p>
-			<button type="button" class="mini" onclick={() => editor.disconnect()}>Desconectar</button>
-		{:else}
-			<p>Sin conectar. Para publicar necesitas un token de GitHub.</p>
-			<button type="button" class="mini" onclick={() => editor.openConnect()}>Conectar con GitHub</button>
-		{/if}
-		<p class="quiet">
-			{#if !editor.ready}
-				Cargando contenido…
-			{:else if editor.loadedFrom === 'github'}
-				Contenido cargado de GitHub.
+	{#if !editor.offline}
+		<section aria-labelledby="hist-h">
+			<h2 id="hist-h">Historial</h2>
+			{#if editor.history.length}
+				<ul class="hist">
+					{#each editor.history as version, i (version.id)}
+						<li>
+							{#if i === 0}
+								<span class="hist-row current">
+									<span>{formatDate(version.created_at)}</span>
+									<span class="tag">Publicada</span>
+								</span>
+							{:else}
+								<button type="button" class="hist-row" onclick={() => editor.restoreVersion(version)}>
+									<span>{formatDate(version.created_at)}</span>
+									<span class="restore">Cargar</span>
+								</button>
+							{/if}
+						</li>
+					{/each}
+				</ul>
 			{:else}
-				Contenido cargado del código local, porque aún no está en GitHub o no hay conexión.
+				<p class="quiet">Aún no hay versiones guardadas.</p>
 			{/if}
-		</p>
+		</section>
+	{/if}
+
+	<section aria-labelledby="ses-h" class="gh">
+		<h2 id="ses-h">Sesión</h2>
+		{#if editor.offline}
+			<p>Modo local: Supabase no está configurado, así que puedes editar pero no publicar.</p>
+		{:else}
+			<p>Has entrado como {editor.email}.</p>
+			{#if editor.needsRebuild}
+				<button type="button" class="mini" onclick={() => editor.rebuild()}>Actualizar la web</button>
+			{/if}
+			<button type="button" class="mini" onclick={() => editor.logout()}>Cerrar sesión</button>
+		{/if}
 	</section>
 </aside>
 
@@ -218,6 +237,47 @@
 		margin: 0 4px;
 		font-size: 13px;
 		color: var(--muted);
+	}
+	.hist {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.hist-row {
+		width: 100%;
+		appearance: none;
+		border: 0;
+		background: transparent;
+		font: inherit;
+		font-size: 13px;
+		color: var(--ink);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		min-height: 36px;
+		padding: 0 10px;
+		border-radius: 6px;
+		text-align: left;
+	}
+	button.hist-row {
+		cursor: pointer;
+	}
+	button.hist-row:hover {
+		background: #eceef2;
+	}
+	.restore {
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+	.tag {
+		font-size: 12px;
+		color: var(--muted);
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		padding: 1px 8px;
+		background: #fff;
 	}
 	.gh {
 		display: flex;

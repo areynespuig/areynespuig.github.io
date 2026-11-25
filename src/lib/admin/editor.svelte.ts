@@ -1,12 +1,15 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import bundled from '../content/site.json';
 import { LANGS, type CollectionKey, type L10n, type Lang, type SiteContent } from '../content/types';
-import { SITE } from '../config';
+import { SUPABASE } from '../config';
 import { allTargets, COLLECTIONS, resolveTarget, reviewKey, type SectionId, type TargetInfo } from './schema';
-import { commitFiles, checkAccess, fetchContent, utf8ToBase64, GitHubError } from './github';
+import { getSupabase } from './supabase';
 
 export interface PendingAsset {
-	repoPath: string;
+	/** Ruta provisional que usa el contenido hasta que se publica. */
 	publicPath: string;
+	/** Ruta dentro del bucket de Supabase Storage. */
+	storagePath: string;
 	dataUrl: string;
 	name: string;
 }
@@ -20,10 +23,15 @@ export interface Issue {
 	section: SectionId;
 }
 
+export interface Version {
+	id: number;
+	created_at: string;
+}
+
 export type FieldStatus = 'missing' | 'review' | 'changed' | 'ok';
+export type Phase = 'loading' | 'unconfigured' | 'login' | 'error' | 'ready';
 
 const DRAFT_KEY = 'portfolio-cms:draft';
-const TOKEN_KEY = 'portfolio-cms:token';
 
 function copy<T>(value: T): T {
 	return structuredClone($state.snapshot(value)) as T;
@@ -120,22 +128,32 @@ function slug(name: string): string {
 	);
 }
 
+export function formatDate(iso: string): string {
+	return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
+}
+
+class PublishError extends Error {}
+
 export class Editor {
 	published = $state<SiteContent>(copy(bundled as SiteContent));
 	draft = $state<SiteContent>(copy(bundled as SiteContent));
 	pending = $state<Record<string, PendingAsset>>({});
-	/** Archivos ya publicados que la web desplegada todavía no sirve. */
-	recent = $state<Record<string, string>>({});
 
 	lang = $state<Lang>('es');
 	device = $state<'desktop' | 'mobile'>('desktop');
 	scheme = $state<'light' | 'dark'>('light');
 	selected = $state('hero.subtitle');
 
-	remoteSha = $state<string | null>(null);
-	loadedFrom = $state<'github' | 'local'>('local');
-	token = $state<string | null>(null);
-	connectOpen = $state(false);
+	phase = $state<Phase>('loading');
+	/** Editor sin Supabase (solo en desarrollo local): se puede editar, pero no publicar. */
+	offline = $state(false);
+	email = $state('');
+	loginError = $state<string | null>(null);
+	fatal = $state('');
+	/** Fecha de la versión publicada que se cargó; sirve para detectar si alguien publicó entretanto. */
+	remoteUpdatedAt = $state<string | null>(null);
+	history = $state<Version[]>([]);
+	needsRebuild = $state(false);
 	busy = $state(false);
 	ready = $state(false);
 	toast = $state<{ text: string; tone: 'ok' | 'error' } | null>(null);
@@ -144,43 +162,100 @@ export class Editor {
 	info = $derived(resolveTarget(this.draft, this.selected));
 	issues = $derived(this.collectIssues());
 
+	#supabase: SupabaseClient | null = null;
 	#toastTimer: ReturnType<typeof setTimeout> | undefined;
-	#publishAfterConnect = false;
 	#warnedQuota = false;
 
-	async init() {
-		try {
-			this.token = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
-		} catch {
-			this.token = null;
-		}
+	// Sesión y carga
 
-		try {
-			const remote = await fetchContent(this.token);
-			if (remote) {
-				this.published = JSON.parse(remote.text) as SiteContent;
-				this.remoteSha = remote.sha;
-				this.loadedFrom = 'github';
+	async init(options: { allowOffline: boolean }) {
+		this.#supabase = getSupabase();
+		if (!this.#supabase) {
+			if (options.allowOffline) {
+				this.offline = true;
+				this.#restoreDraft();
+				this.phase = 'ready';
+				this.ready = true;
+			} else {
+				this.phase = 'unconfigured';
 			}
-		} catch {
-			// Sin conexión con GitHub: se edita sobre el contenido que viene con el código.
+			return;
 		}
+		const { data } = await this.#supabase.auth.getSession();
+		if (!data.session) {
+			this.phase = 'login';
+			return;
+		}
+		await this.#start(data.session.user.email ?? '');
+	}
 
-		let restored = false;
+	async login(email: string, password: string): Promise<string | null> {
+		if (!this.#supabase) return 'Supabase no está configurado.';
+		this.loginError = null;
+		const { data, error } = await this.#supabase.auth.signInWithPassword({ email: email.trim(), password });
+		if (error || !data.session) {
+			if (error?.status === 429) return 'Demasiados intentos seguidos. Espera unos minutos y vuelve a probar.';
+			if (error?.name === 'AuthRetryableFetchError' || error?.status === 0) {
+				return 'No se ha podido conectar con Supabase. Revisa tu conexión y vuelve a intentarlo.';
+			}
+			return 'El correo o la contraseña no son correctos.';
+		}
+		await this.#start(data.user.email ?? '');
+		return this.loginError;
+	}
+
+	async logout() {
+		await this.#supabase?.auth.signOut();
+		this.email = '';
+		this.ready = false;
+		this.phase = 'login';
+	}
+
+	async retry() {
+		this.phase = 'loading';
+		await this.init({ allowOffline: false });
+	}
+
+	async #start(email: string) {
+		const sb = this.#supabase!;
+		const { data: isAdmin, error: adminError } = await sb.rpc('is_admin');
+		if (adminError || isAdmin !== true) {
+			await sb.auth.signOut();
+			this.loginError = 'Esta cuenta no tiene permiso para editar el portafolio.';
+			this.phase = 'login';
+			return;
+		}
+		const { data, error } = await sb.from('site_content').select('content, updated_at').eq('id', 'main').maybeSingle();
+		if (error) {
+			this.fatal = 'No se ha podido leer el contenido de Supabase. Revisa tu conexión y vuelve a intentarlo.';
+			this.phase = 'error';
+			return;
+		}
+		if (data) {
+			this.published = data.content as SiteContent;
+			this.remoteUpdatedAt = data.updated_at as string;
+		}
+		this.email = email;
+		this.#restoreDraft();
+		this.phase = 'ready';
+		this.ready = true;
+		if (this.changes > 0) this.notify('Has recuperado tu borrador sin publicar.', 'ok');
+		void this.loadHistory();
+	}
+
+	#restoreDraft() {
 		try {
 			const saved = localStorage.getItem(DRAFT_KEY);
 			if (saved) {
 				const parsed = JSON.parse(saved) as { content: SiteContent; pending?: Record<string, PendingAsset> };
 				this.draft = parsed.content;
 				this.pending = parsed.pending ?? {};
-				restored = true;
+				return;
 			}
 		} catch {
 			/* borrador ilegible: se ignora */
 		}
-		if (!restored) this.draft = copy(this.published);
-		this.ready = true;
-		if (restored && this.changes > 0) this.notify('Has recuperado tu borrador sin publicar.', 'ok');
+		this.draft = copy(this.published);
 	}
 
 	persist() {
@@ -221,7 +296,7 @@ export class Editor {
 	}
 
 	asset(src: string): string {
-		return this.pending[src]?.dataUrl ?? this.recent[src] ?? src;
+		return this.pending[src]?.dataUrl ?? src;
 	}
 
 	// Estado de los campos
@@ -255,14 +330,7 @@ export class Editor {
 				for (const lang of LANGS) {
 					const s = this.status(info, f.key, lang);
 					if (s === 'missing' || s === 'review') {
-						out.push({
-							target,
-							title: info.title,
-							field: info.single ? '' : f.label,
-							lang,
-							kind: s,
-							section: info.section
-						});
+						out.push({ target, title: info.title, field: info.single ? '' : f.label, lang, kind: s, section: info.section });
 					}
 				}
 			}
@@ -321,7 +389,7 @@ export class Editor {
 		const name = `${slug(file.name.replace(/\.[^.]+$/, ''))}-${Date.now().toString(36)}.${ext}`;
 		const publicPath = `/uploads/${name}`;
 		const dataUrl = await readFile(file);
-		this.pending[publicPath] = { repoPath: `${SITE.uploadsDir}/${name}`, publicPath, dataUrl, name: file.name };
+		this.pending[publicPath] = { publicPath, storagePath: `uploads/${name}`, dataUrl, name: file.name };
 		info.obj[key] = publicPath;
 	}
 
@@ -364,9 +432,8 @@ export class Editor {
 		const index = list.findIndex((i) => i.id === info.id);
 		if (index >= 0) list.splice(index, 1);
 		for (const k of Object.keys(this.draft.meta.review)) if (k.startsWith(`${info.target}.`)) delete this.draft.meta.review[k];
-		this.selected = COLLECTIONS[info.collection] && list[Math.min(index, list.length - 1)]
-			? `${info.collection}:${list[Math.min(index, list.length - 1)].id}`
-			: 'hero.subtitle';
+		const next = list[Math.min(index, list.length - 1)];
+		this.selected = COLLECTIONS[info.collection] && next ? `${info.collection}:${next.id}` : 'hero.subtitle';
 	}
 
 	discard() {
@@ -377,83 +444,107 @@ export class Editor {
 		this.notify('Cambios descartados.', 'ok');
 	}
 
-	// GitHub
+	// Historial
 
-	async connect(token: string, remember: boolean): Promise<string | null> {
-		const value = token.trim();
-		if (!value) return 'Pega el token para continuar.';
-		try {
-			await checkAccess(value);
-		} catch (err) {
-			return err instanceof GitHubError ? err.message : 'No se ha podido comprobar el token.';
-		}
-		try {
-			localStorage.removeItem(TOKEN_KEY);
-			sessionStorage.removeItem(TOKEN_KEY);
-			(remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, value);
-		} catch {
-			/* sin almacenamiento: dura hasta cerrar la pestaña */
-		}
-		this.token = value;
-		this.connectOpen = false;
-		this.notify('Conectado con GitHub.', 'ok');
-		if (this.#publishAfterConnect) {
-			this.#publishAfterConnect = false;
-			await this.publish();
-		}
-		return null;
+	async loadHistory() {
+		if (!this.#supabase) return;
+		const { data, error } = await this.#supabase
+			.from('site_content_versions')
+			.select('id, created_at')
+			.order('id', { ascending: false })
+			.limit(15);
+		if (!error && data) this.history = data as Version[];
 	}
 
-	disconnect() {
-		try {
-			localStorage.removeItem(TOKEN_KEY);
-			sessionStorage.removeItem(TOKEN_KEY);
-		} catch {
-			/* nada que borrar */
+	async restoreVersion(version: Version) {
+		if (!this.#supabase) return;
+		if (this.changes > 0 && !confirm('Tienes cambios sin publicar. ¿Quieres sustituirlos por esta versión?')) return;
+		const { data, error } = await this.#supabase.from('site_content_versions').select('content').eq('id', version.id).single();
+		if (error || !data) {
+			this.notify('No se ha podido cargar esa versión. Vuelve a intentarlo.', 'error');
+			return;
 		}
-		this.token = null;
-		this.notify('Desconectado de GitHub. El token se ha borrado de este navegador.', 'ok');
+		this.draft = data.content as SiteContent;
+		this.pending = {};
+		if (!resolveTarget(this.draft, this.selected)) this.selected = 'hero.subtitle';
+		this.notify(`Has cargado la versión del ${formatDate(version.created_at)}. Revísala y pulsa «Publicar» para recuperarla.`, 'ok');
 	}
 
-	openConnect(publishAfter = false) {
-		this.#publishAfterConnect = publishAfter;
-		this.connectOpen = true;
-	}
+	// Publicación
 
 	async publish() {
 		if (this.busy || this.changes === 0) return;
-		if (!this.token) {
-			this.openConnect(true);
+		const sb = this.#supabase;
+		if (!sb) {
+			this.notify('En modo local no se puede publicar. Configura Supabase en src/lib/config.ts.', 'error');
 			return;
 		}
 		this.busy = true;
 		try {
-			const content = clean(copy(this.draft));
-			const json = JSON.stringify(content, null, 2) + '\n';
-			const used = Object.values($state.snapshot(this.pending)).filter((a) => json.includes(`"${a.publicPath}"`));
-			const count = this.changes;
-			const result = await commitFiles(this.token, {
-				expectedContentSha: this.remoteSha,
-				message: `Actualiza el portafolio desde el editor (${count} ${count === 1 ? 'cambio' : 'cambios'})`,
-				files: [
-					{ path: SITE.contentPath, base64: utf8ToBase64(json) },
-					...used.map((a) => ({ path: a.repoPath, base64: a.dataUrl.slice(a.dataUrl.indexOf(',') + 1) }))
-				]
-			});
-			for (const a of used) this.recent[a.publicPath] = a.dataUrl;
+			let json = JSON.stringify(clean(copy(this.draft)));
+
+			// 1. Sube a Storage los archivos nuevos que sigan en uso y cambia sus rutas por la URL pública.
+			const bucket = sb.storage.from(SUPABASE.bucket);
+			for (const asset of Object.values($state.snapshot(this.pending))) {
+				const placeholder = JSON.stringify(asset.publicPath);
+				if (!json.includes(placeholder)) continue;
+				const blob = await (await fetch(asset.dataUrl)).blob();
+				const { error } = await bucket.upload(asset.storagePath, blob, { contentType: blob.type, upsert: false, cacheControl: '31536000' });
+				if (error) throw new PublishError(`No se ha podido subir «${asset.name}». Comprueba que es una imagen o un PDF de menos de 8 MB.`);
+				json = json.replaceAll(placeholder, JSON.stringify(bucket.getPublicUrl(asset.storagePath).data.publicUrl));
+			}
+			const content = JSON.parse(json) as SiteContent;
+
+			// 2. Guarda el contenido solo si nadie lo ha cambiado desde que se cargó.
+			let savedAt: string;
+			if (this.remoteUpdatedAt) {
+				const { data, error } = await sb
+					.from('site_content')
+					.update({ content })
+					.eq('id', 'main')
+					.eq('updated_at', this.remoteUpdatedAt)
+					.select('updated_at');
+				if (error) throw new PublishError('Supabase no ha aceptado el cambio. Vuelve a entrar y prueba de nuevo.');
+				if (!data.length) {
+					throw new PublishError('El contenido ha cambiado desde que abriste el editor. Recarga la página para traer la última versión; tu borrador se mantiene.');
+				}
+				savedAt = data[0].updated_at as string;
+			} else {
+				const { data, error } = await sb.from('site_content').insert({ id: 'main', content }).select('updated_at').single();
+				if (error) throw new PublishError('No se ha podido guardar el contenido. Recarga la página y vuelve a intentarlo.');
+				savedAt = data.updated_at as string;
+			}
+
 			this.published = copy(content);
 			this.draft = copy(content);
 			this.pending = {};
-			this.remoteSha = result.contentSha;
-			this.loadedFrom = 'github';
+			this.remoteUpdatedAt = savedAt;
 			localStorage.removeItem(DRAFT_KEY);
-			this.notify('Publicado. La web se actualizará en uno o dos minutos.', 'ok');
+			void this.loadHistory();
+
+			// 3. Pide a GitHub que vuelva a generar la web con el contenido nuevo.
+			await this.rebuild(true);
 		} catch (err) {
-			if (err instanceof GitHubError && err.kind === 'auth') this.token = null;
-			this.notify(err instanceof GitHubError ? err.message : 'No se ha podido publicar. Vuelve a intentarlo.', 'error');
+			this.notify(err instanceof PublishError ? err.message : 'No se ha podido publicar. Revisa tu conexión y vuelve a intentarlo.', 'error');
 		} finally {
 			this.busy = false;
 		}
 	}
-}
 
+	async rebuild(afterSave = false) {
+		if (!this.#supabase) return;
+		const { error } = await this.#supabase.functions.invoke('publish', { method: 'POST' });
+		if (error) {
+			this.needsRebuild = true;
+			this.notify(
+				afterSave
+					? 'Guardado en Supabase, pero GitHub no ha recibido el aviso para actualizar la web. Pulsa «Actualizar la web» para reintentarlo.'
+					: 'GitHub no ha recibido el aviso para actualizar la web. Vuelve a intentarlo en unos minutos.',
+				'error'
+			);
+			return;
+		}
+		this.needsRebuild = false;
+		this.notify(afterSave ? 'Publicado. La web se actualizará en uno o dos minutos.' : 'Hecho. La web se actualizará en uno o dos minutos.', 'ok');
+	}
+}
