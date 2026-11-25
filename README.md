@@ -1,3 +1,20 @@
+**How the site works now**
+
+The portfolio is built with SvelteKit 3 (Svelte 5, Vite 8, TypeScript) and generated as static HTML for GitHub Pages: `/` in Spanish, `/ca/` in Catalan and `/en/` in English. All the text, dates, links and file paths live in [`src/lib/content/site.json`](src/lib/content/site.json); the page itself is [`src/lib/components/Portfolio.svelte`](src/lib/components/Portfolio.svelte).
+
+To work on it locally (Node.js LTS):
+
+```
+npm install
+npm run dev
+```
+
+The site is at http://localhost:5173 and the editor at http://localhost:5173/admin/.
+
+*Editor (`/admin/`).* It shows the real page. Click any text, entry or image to edit it in the right-hand panel, in the three languages at once. When one language changes, the other two are marked for review until you edit them or confirm they are fine. Unpublished changes are kept in the browser. **Publish** commits `site.json` (and any new image or PDF, under `static/uploads/`) to `main` using a fine-grained GitHub token with *Contents: read and write* on this repository only. The token is stored only in that browser.
+
+*Deploy.* [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) builds and publishes the site on every push to `main`, including the ones made from the editor. In the repository settings, *Pages › Build and deployment › Source* must be set to **GitHub Actions**.
+
 **User Profile**
 
 The main target of this website is anyone who wants to get to know me professionally — recruiters, professors, or potential collaborators. I wanted the page to give a clear and quick overview of who I am, what I study, and what I can do. A recruiter visiting the site should immediately understand my skills and background, while classmates or teachers can use it as a quick reference to my projects and experience.
