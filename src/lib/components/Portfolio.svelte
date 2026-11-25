@@ -28,6 +28,12 @@
 		return { first: words[0] ?? '', rest: words.slice(1).join(' ') };
 	});
 
+	/** Proporción de la foto para reservar su hueco antes de que cargue (sin datos, 4:5). */
+	const photoSize = $derived.by(() => {
+		const d = content.profile.photoDimensions;
+		return d && d.width > 0 && d.height > 0 ? d : { width: 480, height: 600 };
+	});
+
 	const skills = $derived(
 		editing
 			? (content.about.skills[lang] ?? []).filter((s) => s.trim() !== '')
@@ -137,8 +143,8 @@
 						<img
 							src={asset(content.profile.photo)}
 							alt={pick(content.profile.photoAlt, lang)}
-							width="480"
-							height="600"
+							width={photoSize.width}
+							height={photoSize.height}
 							fetchpriority="high"
 							style:transform={frameTransform(content.profile.photoFrame)}
 						/>
@@ -552,10 +558,15 @@
 		border-color: var(--hero-ink);
 		color: var(--hero);
 	}
-	/* El recuadro de la foto no cambia; el encuadre del editor mueve y escala la imagen dentro. */
+	/*
+	 * El recuadro tiene el ancho fijo y toma la proporción de la foto, así no se recorta.
+	 * El encuadre del editor mueve y escala la imagen dentro de él. Solo una foto
+	 * extremadamente alargada (más de 4:7) se recorta por abajo.
+	 */
 	.photo {
-		width: clamp(8rem, 17cqi, 15rem);
-		aspect-ratio: 4 / 5;
+		--photo-w: clamp(8rem, 17cqi, 15rem);
+		width: var(--photo-w);
+		max-height: calc(var(--photo-w) * 1.75);
 		border-radius: 14px;
 		overflow: hidden;
 		background: color-mix(in oklch, var(--hero-ink) 15%, var(--hero));
@@ -563,8 +574,7 @@
 	.photo img {
 		display: block;
 		width: 100%;
-		height: 100%;
-		object-fit: cover;
+		height: auto;
 	}
 	.actions {
 		margin-top: 2.25rem;

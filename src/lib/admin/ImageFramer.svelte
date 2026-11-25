@@ -171,7 +171,7 @@
 		display: block;
 		flex: none;
 		width: 132px;
-		aspect-ratio: 4 / 5;
+		max-height: calc(132px * 1.75);
 		border-radius: 10px;
 		overflow: hidden;
 		background: #c9d0f2;
@@ -187,17 +187,17 @@
 		outline: 3px solid var(--ink);
 		outline-offset: 2px;
 	}
+	/* Misma proporción que la foto, igual que el recuadro de la web. */
 	.crop img {
 		display: block;
 		width: 100%;
-		height: 100%;
-		object-fit: cover;
+		height: auto;
 		pointer-events: none;
 	}
 	.empty {
 		display: grid;
 		place-items: center;
-		height: 100%;
+		aspect-ratio: 4 / 5;
 		font-size: 12px;
 		color: var(--muted);
 	}
