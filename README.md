@@ -1,6 +1,6 @@
 **How the site works now**
 
-The portfolio is built with SvelteKit 3 (Svelte 5, Vite 8, TypeScript) and generated as static HTML for GitHub Pages: `/` in Spanish, `/ca/` in Catalan and `/en/` in English. All the text, dates, links and file paths live in [`src/lib/content/site.json`](src/lib/content/site.json); the page itself is [`src/lib/components/Portfolio.svelte`](src/lib/components/Portfolio.svelte).
+The portfolio is built with SvelteKit 3 (Svelte 5, Vite 8, TypeScript) and generated as static HTML for GitHub Pages: `/` in Spanish, `/ca/` in Catalan and `/en/` in English. The content (text, dates, links and file paths) is stored in Supabase and read when the site is built; until Supabase is configured in [`src/lib/config.ts`](src/lib/config.ts), the build uses [`src/lib/content/site.json`](src/lib/content/site.json). The page itself is [`src/lib/components/Portfolio.svelte`](src/lib/components/Portfolio.svelte).
 
 To work on it locally (Node.js LTS):
 
@@ -11,9 +11,11 @@ npm run dev
 
 The site is at http://localhost:5173 and the editor at http://localhost:5173/admin/.
 
-*Editor (`/admin/`).* It shows the real page. Click any text, entry or image to edit it in the right-hand panel, in the three languages at once. When one language changes, the other two are marked for review until you edit them or confirm they are fine. Unpublished changes are kept in the browser. **Publish** commits `site.json` (and any new image or PDF, under `static/uploads/`) to `main` using a fine-grained GitHub token with *Contents: read and write* on this repository only. The token is stored only in that browser.
+*Editor (`/admin/`).* Sign in with the email and password of the Supabase admin account. The editor shows the real page: click any text, entry or image to edit it in the right-hand panel, in the three languages at once. When one language changes, the other two are marked for review until you edit them or confirm they are fine. Unpublished changes are kept in the browser. **Publish** uploads new images and PDFs to Supabase Storage, saves the content in Supabase (every version is kept and can be restored from *Historial*) and asks GitHub to rebuild the site through the `publish` Edge Function. Row Level Security only lets the accounts in the `admins` table write. Without Supabase configured, `npm run dev` opens the editor in local mode (edit only, no publishing).
 
-*Deploy.* [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) builds and publishes the site on every push to `main`, including the ones made from the editor. In the repository settings, *Pages › Build and deployment › Source* must be set to **GitHub Actions**.
+*Supabase setup.* Step-by-step guide in [`docs/SUPABASE.md`](docs/SUPABASE.md); the schema and policies are in [`supabase/migrations`](supabase/migrations) and the function in [`supabase/functions/publish`](supabase/functions/publish).
+
+*Deploy.* [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) builds and publishes the site on every push to `main` and whenever the editor publishes. In the repository settings, *Pages › Build and deployment › Source* must be set to **GitHub Actions**.
 
 **User Profile**
 

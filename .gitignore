@@ -25,3 +25,7 @@ vite.config.ts.timestamp-*
 
 # Claude Code (vista previa local)
 .claude/
+
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/

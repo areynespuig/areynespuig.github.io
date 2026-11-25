@@ -1,0 +1,6 @@
+project_id = "areynespuig-portfolio"
+
+[functions.publish]
+# La función comprueba la sesión y el permiso de administrador por sí misma
+# (compatible con las claves de firma nuevas de Supabase).
+verify_jwt = false

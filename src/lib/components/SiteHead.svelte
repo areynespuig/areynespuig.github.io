@@ -2,6 +2,7 @@
 	import { LANGS, type Lang, type SiteContent } from '../content/types';
 	import { LANG_PATHS, UI, pick } from '../i18n';
 	import { SITE } from '../config';
+	import { absoluteUrl, safeHref } from '../content/urls';
 
 	let { lang, content }: { lang: Lang; content: SiteContent } = $props();
 
@@ -13,9 +14,9 @@
 			'@type': 'Person',
 			name: content.profile.name,
 			url: SITE.url + LANG_PATHS[lang],
-			image: SITE.url + content.profile.photo,
+			image: absoluteUrl(content.profile.photo),
 			description: pick(content.hero.subtitle, lang),
-			sameAs: [content.profile.linkedin, content.profile.github]
+			sameAs: [content.profile.linkedin, content.profile.github].filter((u) => safeHref(u))
 		}).replace(/</g, '\\u003c')
 	);
 </script>
@@ -32,7 +33,7 @@
 	<meta property="og:title" content={UI[lang].title} />
 	<meta property="og:description" content={pick(content.hero.subtitle, lang)} />
 	<meta property="og:url" content={SITE.url + LANG_PATHS[lang]} />
-	<meta property="og:image" content={SITE.url + content.profile.photo} />
+	<meta property="og:image" content={absoluteUrl(content.profile.photo)} />
 	<meta property="og:locale" content={LOCALES[lang]} />
 	<meta name="theme-color" content="#2346e8" />
 	{@html `<script type="application/ld+json">${person}</script>`}

@@ -1,12 +1,13 @@
 <script lang="ts">
 	import '@fontsource-variable/albert-sans/index.css';
 	import { onMount } from 'svelte';
+	import { dev } from '$app/env';
 	import Portfolio from '#lib/components/Portfolio.svelte';
 	import { provideEditor } from '#lib/components/editor-context.ts';
 	import { Editor } from '#lib/admin/editor.svelte.ts';
+	import Gate from '#lib/admin/Gate.svelte';
 	import Sidebar from '#lib/admin/Sidebar.svelte';
 	import Inspector from '#lib/admin/Inspector.svelte';
-	import ConnectDialog from '#lib/admin/ConnectDialog.svelte';
 	import { LANGS } from '#lib/content/types.ts';
 	import { LANG_NAMES, LANG_PATHS } from '#lib/i18n.ts';
 	import { SITE } from '#lib/config.ts';
@@ -21,7 +22,8 @@
 	});
 
 	onMount(() => {
-		editor.init();
+		// Sin Supabase configurado, en desarrollo local se puede editar igualmente (sin publicar).
+		editor.init({ allowOffline: dev });
 	});
 
 	// Guarda el borrador en el navegador cada vez que cambia algo.
@@ -49,7 +51,10 @@
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<div class="cms">
+<div class={['cms', editor.phase !== 'ready' && 'is-gate']}>
+	{#if editor.phase !== 'ready'}
+		<Gate {editor} />
+	{:else}
 	<header class="top">
 		<div class="brand">
 			<strong>Portafolio de Albert</strong>
@@ -90,7 +95,13 @@
 		<div class="pub">
 			<span class={['state', editor.changes > 0 && 'has']} role="status">{statusText}</span>
 			<button type="button" class="btn" disabled={!editor.changes || editor.busy} onclick={() => editor.discard()}>Descartar</button>
-			<button type="button" class="btn btn-pub" disabled={!editor.changes || editor.busy} onclick={() => editor.publish()}>
+			<button
+				type="button"
+				class="btn btn-pub"
+				disabled={!editor.changes || editor.busy || editor.offline}
+				title={editor.offline ? 'En modo local no se puede publicar' : undefined}
+				onclick={() => editor.publish()}
+			>
 				{editor.busy ? 'Publicando…' : 'Publicar'}
 			</button>
 		</div>
@@ -111,8 +122,7 @@
 		</section>
 		<Inspector {editor} />
 	</div>
-
-	<ConnectDialog {editor} />
+	{/if}
 
 	{#if editor.toast}
 		<div class={['toast', editor.toast.tone]} role={editor.toast.tone === 'error' ? 'alert' : 'status'}>
@@ -149,6 +159,10 @@
 		color: var(--ink);
 		background: var(--desk);
 		color-scheme: light;
+	}
+	.cms.is-gate {
+		display: block;
+		overflow: auto;
 	}
 	.cms :global(:focus-visible) {
 		outline: 2px solid var(--ink);
