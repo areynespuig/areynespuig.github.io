@@ -22,8 +22,9 @@
 	});
 
 	onMount(() => {
-		// Sin Supabase configurado, en desarrollo local se puede editar igualmente (sin publicar).
-		editor.init({ allowOffline: dev });
+		// En desarrollo local se puede editar sin Supabase (sin publicar): si no está configurado,
+		// o abriendo /admin/?local para probar sin iniciar sesión.
+		editor.init({ allowOffline: dev, forceOffline: dev && new URL(location.href).searchParams.has('local') });
 	});
 
 	// Guarda el borrador en el navegador cada vez que cambia algo.

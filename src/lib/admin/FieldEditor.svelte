@@ -3,6 +3,7 @@
 	import { LANG_NAMES } from '../i18n';
 	import type { Editor, FieldStatus } from './editor.svelte';
 	import type { FieldDef, TargetInfo } from './schema';
+	import ImageFramer from './ImageFramer.svelte';
 
 	let { editor, info, field }: { editor: Editor; info: TargetInfo; field: FieldDef } = $props();
 
@@ -101,6 +102,8 @@
 		/>
 		{field.label}
 	</label>
+{:else if field.type === 'imageFrame'}
+	<ImageFramer {editor} {info} frameKey={field.key} imageKey={field.image} label={field.label} />
 {:else if field.type === 'image' || field.type === 'pdf'}
 	<div class="single">
 		<span class="label" id={`${base}-label`}>{field.label}</span>

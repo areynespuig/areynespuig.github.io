@@ -38,11 +38,14 @@
 			behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 		});
 	}
-	function upload(key: 'photo' | 'cv', input: HTMLInputElement) {
+	async function upload(key: 'photo' | 'cv', input: HTMLInputElement) {
 		const file = input.files?.[0];
-		const info = resolveTarget(editor.draft, 'profile');
-		if (file && info) editor.upload(info, key, file);
+		const target = key === 'photo' ? 'photo' : 'profile';
+		const info = resolveTarget(editor.draft, target);
 		input.value = '';
+		if (!file || !info) return;
+		await editor.upload(info, key, file);
+		editor.reveal(target);
 	}
 </script>
 
