@@ -1,0 +1,39 @@
+html {
+	color-scheme: light dark;
+	background: light-dark(#f5f6f4, #101214);
+	scroll-behavior: smooth;
+	-webkit-text-size-adjust: 100%;
+}
+html[data-theme='light'] {
+	color-scheme: light;
+}
+html[data-theme='dark'] {
+	color-scheme: dark;
+}
+body {
+	margin: 0;
+}
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+img {
+	max-width: 100%;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 0.22s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+}
