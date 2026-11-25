@@ -133,7 +133,7 @@
 		{:else}
 			<p>Has entrado como {editor.email}.</p>
 			{#if editor.needsRebuild}
-				<button type="button" class="mini" onclick={() => editor.rebuild()}>Actualizar la web</button>
+				<button type="button" class="mini" onclick={() => editor.rebuild()}>Regenerar la web</button>
 			{/if}
 			<button type="button" class="mini" onclick={() => editor.logout()}>Cerrar sesión</button>
 		{/if}

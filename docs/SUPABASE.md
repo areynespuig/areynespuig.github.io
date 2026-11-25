@@ -1,6 +1,6 @@
 # Conectar el portafolio a Supabase
 
-Con esto, el editor de `/admin/` pide correo y contraseña, guarda el contenido en una base de datos de Supabase con historial de versiones y sube las fotos y el CV a Supabase Storage. La web sigue siendo estática: al publicar, GitHub la vuelve a generar con el contenido de la base de datos.
+Con esto, el editor de `/admin/` pide correo y contraseña, guarda el contenido en una base de datos de Supabase con historial de versiones y sube las fotos y el CV a Supabase Storage. Lo que publicas se ve al momento: la web lee la última versión de Supabase al abrirse. Además, GitHub vuelve a generar el HTML con el contenido nuevo, que es lo que leen los buscadores y lo que se ve si Supabase no responde.
 
 ## Cómo queda protegido
 
@@ -92,5 +92,5 @@ No pongas nunca la **secret key** (`sb_secret_…` o `service_role`) en el códi
 ## Si algo falla
 
 - **«Esta cuenta no tiene permiso para editar»:** falta el paso 5, o el correo no coincide.
-- **«Guardado en Supabase, pero GitHub no ha recibido el aviso»:** revisa el secreto `GITHUB_TOKEN` (paso 6), que no haya caducado y que la función esté desplegada (paso 7). El contenido ya está guardado: cuando lo arregles, pulsa «Actualizar la web».
+- **«Publicado: ya se ve en la web. Pero GitHub no ha regenerado la versión para buscadores»:** los visitantes ya ven el cambio, porque la web lee Supabase al abrirse; lo que falla es regenerar el HTML que leen los buscadores. El mensaje incluye el motivo. Lo habitual es que el secreto `GITHUB_TOKEN` (paso 6) falte, haya caducado o no tenga permiso **Actions: Read and write**, o que la función no esté desplegada (paso 7). Cuando lo arregles, pulsa «Regenerar la web».
 - **El despliegue de GitHub falla al leer Supabase:** la web publicada se queda como estaba. Revisa la URL y la clave del paso 8.
