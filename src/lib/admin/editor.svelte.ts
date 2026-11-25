@@ -52,8 +52,8 @@ function flatten(content: SiteContent): Map<string, string> {
 	const out = new Map<string, string>();
 	const walk = (value: unknown, path: string) => {
 		if (value === undefined) return;
-		// El encuadre de la foto (zoom y posición) cuenta como un solo cambio.
-		if (path.endsWith('.photoFrame')) {
+		// El encuadre de la foto (zoom y posición) y su tamaño cuentan como un solo valor.
+		if (path.endsWith('.photoFrame') || path.endsWith('.photoDimensions')) {
 			out.set(path, JSON.stringify(value));
 			return;
 		}
@@ -119,6 +119,16 @@ function readFile(file: File): Promise<string> {
 		reader.onload = () => resolve(String(reader.result));
 		reader.onerror = () => reject(reader.error);
 		reader.readAsDataURL(file);
+	});
+}
+
+/** Tamaño original de una imagen, para que el recuadro de la web tome su proporción. */
+function imageSize(dataUrl: string): Promise<{ width: number; height: number } | null> {
+	return new Promise((resolve) => {
+		const img = new Image();
+		img.onload = () => resolve(img.naturalWidth && img.naturalHeight ? { width: img.naturalWidth, height: img.naturalHeight } : null);
+		img.onerror = () => resolve(null);
+		img.src = dataUrl;
 	});
 }
 
@@ -413,8 +423,13 @@ export class Editor {
 		const dataUrl = await readFile(file);
 		this.pending[publicPath] = { publicPath, storagePath: `uploads/${name}`, dataUrl, name: file.name };
 		info.obj[key] = publicPath;
-		// Una foto nueva empieza centrada y sin zoom.
-		if (key === 'photo') delete info.obj.photoFrame;
+		if (key === 'photo') {
+			// Una foto nueva empieza centrada y sin zoom, y el recuadro toma su proporción.
+			delete info.obj.photoFrame;
+			const size = await imageSize(dataUrl);
+			if (size) info.obj.photoDimensions = size;
+			else delete info.obj.photoDimensions;
+		}
 	}
 
 	add(collection: CollectionKey) {

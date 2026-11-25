@@ -23,6 +23,8 @@ export const PHOTO_OFFSET_MAX = 100;
 export interface Profile {
 	name: string;
 	photo: string;
+	/** Tamaño original de la foto: el recuadro de la web toma su proporción para no recortarla. */
+	photoDimensions?: { width: number; height: number };
 	photoFrame?: PhotoFrame;
 	photoAlt: L10n;
 	cv: string;
