@@ -18,6 +18,8 @@
 		isFlagged: (t) => editor.isFlagged(t),
 		select: (t) => editor.select(t),
 		add: (c) => editor.add(c),
+		addSection: (l) => editor.addSection(l),
+		addItem: (id) => editor.addItem(id),
 		asset: (s) => editor.asset(s)
 	});
 
