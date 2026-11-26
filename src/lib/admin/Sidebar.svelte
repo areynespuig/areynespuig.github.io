@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Lang } from '../content/types';
 	import { formatDate, type Editor } from './editor.svelte';
-	import { resolveTarget, SECTIONS } from './schema';
+	import { resolveTarget, sectionList } from './schema';
 
 	let { editor }: { editor: Editor } = $props();
 
@@ -32,11 +32,21 @@
 	function counts(section: string): number {
 		return editor.issues.filter((i) => i.section === section).length;
 	}
+	const sections = $derived(sectionList(editor.draft));
+
+	function scrollTo(el: Element | null) {
+		el?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+	}
+	/** Lleva la vista previa a la sección y la selecciona para poder moverla. */
 	function goTo(id: string) {
-		document.getElementById(id)?.scrollIntoView({
-			block: 'start',
-			behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-		});
+		scrollTo(document.getElementById(id));
+		if (id !== 'inicio') editor.select(`section:${id}`);
+	}
+	/** Lleva la vista previa a los botones para crear una sección. */
+	function goToNewSection() {
+		const box = document.getElementById('nueva-seccion');
+		scrollTo(box);
+		box?.querySelector('button')?.focus({ preventScroll: true });
 	}
 	async function upload(key: 'photo' | 'cv', input: HTMLInputElement) {
 		const file = input.files?.[0];
@@ -53,16 +63,17 @@
 	<nav aria-labelledby="secs-h">
 		<h2 id="secs-h">Secciones de la página</h2>
 		<ul class="secs">
-			{#each SECTIONS as s (s.id)}
+			{#each sections as s (s.id)}
 				{@const n = counts(s.id)}
 				<li>
 					<button type="button" class={['sec', editor.info?.section === s.id && 'is-cur']} onclick={() => goTo(s.id)}>
-						<span>{s.name}</span>
+						<span class="sec-name">{s.name}</span>
 						{#if n}<span class="pill">{n} {n === 1 ? 'pendiente' : 'pendientes'}</span>{/if}
 					</button>
 				</li>
 			{/each}
 		</ul>
+		<button type="button" class="mini add-sec" onclick={goToNewSection}>Añadir sección</button>
 	</nav>
 
 	<section aria-labelledby="pend-h">
@@ -145,6 +156,8 @@
 
 <style>
 	.side {
+		/* Contiene los campos ocultos de subida: si no, alargan la página y el editor entero se desplaza. */
+		position: relative;
 		background: var(--panel);
 		border-right: 1px solid var(--line);
 		padding: 20px 14px;
@@ -190,6 +203,15 @@
 	}
 	.sec:hover {
 		background: #eceef2;
+	}
+	.sec-name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.add-sec {
+		margin: 8px 0 0 4px;
 	}
 	.sec.is-cur {
 		background: #fff;

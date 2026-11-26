@@ -1,12 +1,22 @@
 <script lang="ts">
 	import '@fontsource-variable/bricolage-grotesque/standard.css';
 	import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
-	import { LANGS, type L10n, type Lang, type SiteContent } from '../content/types';
+	import {
+		LANGS,
+		SECTION_LAYOUTS,
+		type BuiltinSection,
+		type CustomSection,
+		type L10n,
+		type L10nList,
+		type Lang,
+		type SiteContent
+	} from '../content/types';
 	import { LANG_NAMES, LANG_PATHS, UI, pick, pickList } from '../i18n';
 	import Editable from './Editable.svelte';
 	import { useEditor } from './editor-context';
 	import { safeHref } from '../content/urls';
 	import { frameTransform } from '../content/photo';
+	import { hasText, isBuiltin, LAYOUT_INFO, paragraphs, sectionOrder, sectionVisible } from '../content/sections';
 
 	let {
 		content,
@@ -34,15 +44,39 @@
 		return d && d.width > 0 && d.height > 0 ? d : { width: 480, height: 600 };
 	});
 
-	const skills = $derived(
-		editing
-			? (content.about.skills[lang] ?? []).filter((s) => s.trim() !== '')
-			: pickList(content.about.skills, lang)
+	const skills = $derived(list(content.about.skills));
+
+	const BUILTIN_NAV: Record<BuiltinSection, keyof (typeof UI)['es']['nav']> = {
+		sobre: 'about',
+		educacion: 'education',
+		experiencia: 'experience',
+		proyectos: 'projects'
+	};
+	const custom = $derived(new Map((content.sections ?? []).map((s) => [s.id, s])));
+	/** Secciones bajo la portada, en orden. En la web, las nuevas solo aparecen con título y contenido. */
+	const shown = $derived(
+		sectionOrder(content).filter((id) => {
+			if (isBuiltin(id)) return true;
+			const s = custom.get(id);
+			return !!s && (editing || sectionVisible(s));
+		})
 	);
+	/** Letras de la palabra más larga: con títulos largos, el tamaño se ajusta a la columna. */
+	function longestWord(value: string): number {
+		return Math.max(1, ...value.split(/\s+/).map((w) => w.length));
+	}
+	function sectionTitle(id: string): string {
+		if (isBuiltin(id)) return ui.nav[BUILTIN_NAV[id]];
+		const s = custom.get(id);
+		return (s && pick(s.title, lang)) || 'Sección sin título';
+	}
 
 	/** En el editor se ve lo que hay en cada idioma; en la web, si falta, se usa otro idioma. */
 	function text(value: L10n): string {
 		return editing ? value[lang] : pick(value, lang);
+	}
+	function list(value: L10nList): string[] {
+		return editing ? (value[lang] ?? []).filter((s) => s.trim() !== '') : pickList(value, lang);
 	}
 	function missing(value: L10n): boolean {
 		return editing && !value[lang]?.trim();
@@ -88,6 +122,255 @@
 	{#if missing(value)}<span class="missing">{ui.missing}</span>{:else}{text(value)}{/if}
 {/snippet}
 
+{#snippet heading(id: string)}
+	<div class="block-head">
+		<Editable target={`section:${id}`} label={`Sección ${sectionTitle(id)}`} as="div" block>
+			<h2 id={`${id}-h`} style:--chars={isBuiltin(id) ? undefined : longestWord(sectionTitle(id))}>
+				{#if isBuiltin(id)}
+					{sectionTitle(id)}
+				{:else}
+					{@const s = custom.get(id)}
+					{#if s && (!editing || hasText(s.title))}
+						{@render say(s.title)}
+					{:else}
+						<span class="missing">Sección sin título</span>
+					{/if}
+				{/if}
+			</h2>
+		</Editable>
+	</div>
+{/snippet}
+
+{#snippet aboutBlock()}
+	<section class="block" id="sobre" aria-labelledby="sobre-h">
+		<div class="wrap block-grid">
+			{@render heading('sobre')}
+			<div>
+				<Editable target="about.bio" label="Texto de presentación" as="div" block>
+					<p class="bio">{@render say(content.about.bio)}</p>
+				</Editable>
+				<h3 class="skills-h">{ui.skills}</h3>
+				<Editable target="about.skills" label={ui.skills} as="div" block>
+					{#if skills.length}
+						<ul class="skills">
+							{#each skills as skill, i (i)}
+								<li>{skill}</li>
+							{/each}
+						</ul>
+					{:else}
+						<p class="missing">{ui.missing}</p>
+					{/if}
+				</Editable>
+			</div>
+		</div>
+	</section>
+{/snippet}
+
+{#snippet educationBlock()}
+	<section class="block" id="educacion" aria-labelledby="educacion-h">
+		<div class="wrap block-grid">
+			{@render heading('educacion')}
+			<div>
+				<ol class="rows">
+					{#each content.education as item (item.id)}
+						<li>
+							<Editable target={`education:${item.id}`} label={pick(item.title, lang) || 'Estudio sin título'} as="div" block>
+								<div class="row">
+									<p class="when">{years(item.start, item.end, item.ongoing)}</p>
+									<div>
+										<h3>{@render say(item.title)}</h3>
+										<p class="org">{@render say(item.school)}</p>
+									</div>
+								</div>
+							</Editable>
+						</li>
+					{/each}
+				</ol>
+				{#if editor}
+					<button type="button" class="add-item" onclick={() => editor.add('education')}>Añadir estudio</button>
+				{/if}
+			</div>
+		</div>
+	</section>
+{/snippet}
+
+{#snippet experienceBlock()}
+	<section class="block" id="experiencia" aria-labelledby="experiencia-h">
+		<div class="wrap block-grid">
+			{@render heading('experiencia')}
+			<div>
+				<ol class="rows">
+					{#each content.experience as item (item.id)}
+						<li>
+							<Editable target={`experience:${item.id}`} label={pick(item.role, lang) || 'Experiencia sin título'} as="div" block>
+								<div class="row">
+									<div>
+										<p class="when when-small">{@render say(item.kind)}</p>
+										{#if item.start != null}
+											<p class="when">{years(item.start, item.end, item.ongoing)}</p>
+										{/if}
+									</div>
+									<div>
+										<h3>{@render say(item.role)}</h3>
+										{#if item.company}<p class="org">{item.company}</p>{/if}
+										<p class="desc">{@render say(item.description)}</p>
+									</div>
+								</div>
+							</Editable>
+						</li>
+					{/each}
+				</ol>
+				{#if editor}
+					<button type="button" class="add-item" onclick={() => editor.add('experience')}>Añadir experiencia</button>
+				{/if}
+			</div>
+		</div>
+	</section>
+{/snippet}
+
+{#snippet projectsBlock()}
+	<section class="block" id="proyectos" aria-labelledby="proyectos-h">
+		<div class="wrap block-grid">
+			{@render heading('proyectos')}
+			<div>
+				<ul class="cards">
+					{#each content.projects as item (item.id)}
+						<li>
+							<Editable target={`projects:${item.id}`} label={item.title || 'Proyecto sin nombre'} as="div" block>
+								<article class="card">
+									{#if item.image}
+										<figure>
+											<img src={asset(item.image)} alt={pick(item.imageAlt, lang)} loading="lazy" />
+										</figure>
+									{:else if editing}
+										<figure class="no-image">Sin imagen</figure>
+									{/if}
+									<div class="card-body">
+										<h3>{item.title || (editing ? 'Proyecto sin nombre' : '')}</h3>
+										{#if item.year}<p class="year">{item.year}</p>{/if}
+										<p>{@render say(item.description)}</p>
+										{#if item.url}
+											<a href={link(item.url)} target="_blank" rel="noopener">
+												{ui.viewProject}<span class="visually-hidden"> {item.title} {ui.newTab}</span>
+											</a>
+										{/if}
+									</div>
+								</article>
+							</Editable>
+						</li>
+					{/each}
+				</ul>
+				{#if editor}
+					<button type="button" class="add-item" onclick={() => editor.add('projects')}>Añadir proyecto</button>
+				{/if}
+			</div>
+		</div>
+	</section>
+{/snippet}
+
+{#snippet customBlock(s: CustomSection)}
+	{@const target = `section:${s.id}`}
+	{@const name = sectionTitle(s.id)}
+	<section class="block" id={s.id} aria-labelledby={`${s.id}-h`}>
+		<div class="wrap block-grid">
+			{@render heading(s.id)}
+			<div>
+				{#if s.layout === 'text'}
+					{@const points = list(s.points)}
+					{@const anyPoints = LANGS.some((l) => s.points[l]?.some((p) => p.trim()))}
+					<Editable {target} label={`Texto de ${name}`} as="div" block>
+						{#if hasText(s.body)}
+							{#if missing(s.body)}
+								<p class="missing">{ui.missing}</p>
+							{:else}
+								<div class="prose">
+									{#each paragraphs(text(s.body)) as paragraph, i (i)}
+										<p>{paragraph}</p>
+									{/each}
+								</div>
+							{/if}
+						{/if}
+						{#if points.length}
+							<ul class={['skills', hasText(s.body) && 'after-text']}>
+								{#each points as point, i (i)}
+									<li>{point}</li>
+								{/each}
+							</ul>
+						{:else if editing && anyPoints}
+							<p class="missing after-text">{ui.missing}</p>
+						{/if}
+						{#if editing && !hasText(s.body) && !anyPoints}
+							<p class="placeholder">Escribe el texto de la sección en el panel de la derecha.</p>
+						{/if}
+					</Editable>
+				{:else}
+					{#if hasText(s.body)}
+						<Editable {target} label={`Introducción de ${name}`} as="div" block>
+							<p class="lead">{@render say(s.body)}</p>
+						</Editable>
+					{/if}
+					{#if s.items.length && s.layout === 'list'}
+						<ol class="rows">
+							{#each s.items as item (item.id)}
+								<li>
+									<Editable target={`${target}/${item.id}`} label={pick(item.title, lang) || 'Entrada sin título'} as="div" block>
+										<div class="row">
+											<p class="when">{years(item.start, item.end, item.ongoing)}</p>
+											<div>
+												<h3>{@render say(item.title)}</h3>
+												{#if hasText(item.subtitle)}<p class="org">{@render say(item.subtitle)}</p>{/if}
+												{#if hasText(item.description)}<p class="desc">{@render say(item.description)}</p>{/if}
+												{#if item.url}
+													<a class="more" href={link(item.url)} target="_blank" rel="noopener">
+														{ui.more}<span class="visually-hidden"> {pick(item.title, lang)} {ui.newTab}</span>
+													</a>
+												{/if}
+											</div>
+										</div>
+									</Editable>
+								</li>
+							{/each}
+						</ol>
+					{:else if s.items.length}
+						<ul class="cards">
+							{#each s.items as item (item.id)}
+								<li>
+									<Editable target={`${target}/${item.id}`} label={pick(item.title, lang) || 'Tarjeta sin título'} as="div" block>
+										<article class="card">
+											{#if item.image}
+												<figure>
+													<img src={asset(item.image)} alt={pick(item.imageAlt, lang)} loading="lazy" />
+												</figure>
+											{:else if editing}
+												<figure class="no-image">Sin imagen</figure>
+											{/if}
+											<div class="card-body">
+												<h3>{@render say(item.title)}</h3>
+												{#if item.start}<p class="year">{item.start}</p>{/if}
+												{#if hasText(item.description)}<p>{@render say(item.description)}</p>{/if}
+												{#if item.url}
+													<a href={link(item.url)} target="_blank" rel="noopener">
+														{ui.more}<span class="visually-hidden"> {pick(item.title, lang)} {ui.newTab}</span>
+													</a>
+												{/if}
+											</div>
+										</article>
+									</Editable>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+					{#if editor}
+						<button type="button" class="add-item" onclick={() => editor.addItem(s.id)}>
+							{s.layout === 'list' ? 'Añadir entrada' : 'Añadir tarjeta'}
+						</button>
+					{/if}
+				{/if}
+			</div>
+		</div>
+	</section>
+{/snippet}
+
 <div class={['site', editing && 'editing']} style:color-scheme={scheme} lang={lang}>
 	{#if !editing}
 		<a class="skip" href="#contenido">{ui.skip}</a>
@@ -98,10 +381,9 @@
 			<div class="bar">
 				<span class="brand">Albert Reynés</span>
 				<nav class="nav" aria-label={ui.navLabel}>
-					<a href="#sobre">{ui.nav.about}</a>
-					<a href="#educacion">{ui.nav.education}</a>
-					<a href="#experiencia">{ui.nav.experience}</a>
-					<a href="#proyectos">{ui.nav.projects}</a>
+					{#each shown as id (id)}
+						<a href={`#${id}`}>{sectionTitle(id)}</a>
+					{/each}
 				</nav>
 				{#if !editing}
 					<button
@@ -196,124 +478,36 @@
 	</header>
 
 	<svelte:element this={editing ? 'div' : 'main'} id="contenido">
-		<section class="block" id="sobre" aria-labelledby="sobre-h">
-			<div class="wrap block-grid">
-				<h2 id="sobre-h">{ui.nav.about}</h2>
-				<div>
-					<Editable target="about.bio" label="Texto de presentación" as="div" block>
-						<p class="bio">{@render say(content.about.bio)}</p>
-					</Editable>
-					<h3 class="skills-h">{ui.skills}</h3>
-					<Editable target="about.skills" label={ui.skills} as="div" block>
-						{#if skills.length}
-							<ul class="skills">
-								{#each skills as skill, i (i)}
-									<li>{skill}</li>
-								{/each}
-							</ul>
-						{:else}
-							<p class="missing">{ui.missing}</p>
-						{/if}
-					</Editable>
-				</div>
-			</div>
-		</section>
+		{#each shown as id (id)}
+			{#if id === 'sobre'}
+				{@render aboutBlock()}
+			{:else if id === 'educacion'}
+				{@render educationBlock()}
+			{:else if id === 'experiencia'}
+				{@render experienceBlock()}
+			{:else if id === 'proyectos'}
+				{@render projectsBlock()}
+			{:else}
+				{@const section = custom.get(id)}
+				{#if section}{@render customBlock(section)}{/if}
+			{/if}
+		{/each}
 
-		<section class="block" id="educacion" aria-labelledby="educacion-h">
-			<div class="wrap block-grid">
-				<h2 id="educacion-h">{ui.nav.education}</h2>
-				<div>
-					<ol class="rows">
-						{#each content.education as item (item.id)}
-							<li>
-								<Editable target={`education:${item.id}`} label={pick(item.title, lang) || 'Estudio sin título'} as="div" block>
-									<div class="row">
-										<p class="when">{years(item.start, item.end, item.ongoing)}</p>
-										<div>
-											<h3>{@render say(item.title)}</h3>
-											<p class="org">{@render say(item.school)}</p>
-										</div>
-									</div>
-								</Editable>
-							</li>
+		{#if editor}
+			<div class="new-section" id="nueva-seccion">
+				<div class="wrap">
+					<p class="new-section-h">Añadir una sección</p>
+					<div class="new-section-opts">
+						{#each SECTION_LAYOUTS as layout (layout)}
+							<button type="button" onclick={() => editor.addSection(layout)}>
+								<strong>{LAYOUT_INFO[layout].label}</strong>
+								<span>{LAYOUT_INFO[layout].hint}</span>
+							</button>
 						{/each}
-					</ol>
-					{#if editor}
-						<button type="button" class="add-item" onclick={() => editor.add('education')}>Añadir estudio</button>
-					{/if}
+					</div>
 				</div>
 			</div>
-		</section>
-
-		<section class="block" id="experiencia" aria-labelledby="experiencia-h">
-			<div class="wrap block-grid">
-				<h2 id="experiencia-h">{ui.nav.experience}</h2>
-				<div>
-					<ol class="rows">
-						{#each content.experience as item (item.id)}
-							<li>
-								<Editable target={`experience:${item.id}`} label={pick(item.role, lang) || 'Experiencia sin título'} as="div" block>
-									<div class="row">
-										<div>
-											<p class="when when-small">{@render say(item.kind)}</p>
-											{#if item.start != null}
-												<p class="when">{years(item.start, item.end, item.ongoing)}</p>
-											{/if}
-										</div>
-										<div>
-											<h3>{@render say(item.role)}</h3>
-											{#if item.company}<p class="org">{item.company}</p>{/if}
-											<p class="desc">{@render say(item.description)}</p>
-										</div>
-									</div>
-								</Editable>
-							</li>
-						{/each}
-					</ol>
-					{#if editor}
-						<button type="button" class="add-item" onclick={() => editor.add('experience')}>Añadir experiencia</button>
-					{/if}
-				</div>
-			</div>
-		</section>
-
-		<section class="block" id="proyectos" aria-labelledby="proyectos-h">
-			<div class="wrap block-grid">
-				<h2 id="proyectos-h">{ui.nav.projects}</h2>
-				<div>
-					<ul class="cards">
-						{#each content.projects as item (item.id)}
-							<li>
-								<Editable target={`projects:${item.id}`} label={item.title || 'Proyecto sin nombre'} as="div" block>
-									<article class="card">
-										{#if item.image}
-											<figure>
-												<img src={asset(item.image)} alt={pick(item.imageAlt, lang)} loading="lazy" />
-											</figure>
-										{:else if editing}
-											<figure class="no-image">Sin imagen</figure>
-										{/if}
-										<div class="card-body">
-											<h3>{item.title || (editing ? 'Proyecto sin nombre' : '')}</h3>
-											{#if item.year}<p class="year">{item.year}</p>{/if}
-											<p>{@render say(item.description)}</p>
-											{#if item.url}
-												<a href={link(item.url)} target="_blank" rel="noopener">
-													{ui.viewProject}<span class="visually-hidden"> {item.title} {ui.newTab}</span>
-												</a>
-											{/if}
-										</div>
-									</article>
-								</Editable>
-							</li>
-						{/each}
-					</ul>
-					{#if editor}
-						<button type="button" class="add-item" onclick={() => editor.add('projects')}>Añadir proyecto</button>
-					{/if}
-				</div>
-			</div>
-		</section>
+		{/if}
 	</svelte:element>
 
 	<footer class="foot">
@@ -337,6 +531,8 @@
 
 <style>
 	.site {
+		/* Los textos ocultos (solo para lectores de pantalla) se posicionan dentro de la web, no de la ventana del editor. */
+		position: relative;
 		container: site / inline-size;
 		color-scheme: light dark;
 		--paper: light-dark(#f5f6f4, #101214);
@@ -436,7 +632,9 @@
 	@container site (width >= 48rem) {
 		.nav {
 			display: flex;
-			gap: 1.75rem;
+			flex-wrap: wrap;
+			justify-content: flex-end;
+			gap: 0 1.75rem;
 		}
 	}
 	.nav a {
@@ -624,7 +822,7 @@
 		.block-grid {
 			grid-template-columns: 16rem minmax(0, 1fr);
 		}
-		.block h2 {
+		.block-head {
 			position: sticky;
 			top: 1.5rem;
 			align-self: start;
@@ -638,6 +836,15 @@
 		line-height: 0.95;
 		letter-spacing: -0.005em;
 		text-wrap: balance;
+		/* Los títulos de las secciones nuevas pueden ser palabras largas: se parten en vez de invadir el contenido. */
+		hyphens: auto;
+		overflow-wrap: break-word;
+	}
+	@container site (width >= 60rem) {
+		/* En la columna estrecha, una palabra larga reduce el título lo justo para caber (≈0,4 em por letra). */
+		.block-head h2 {
+			font-size: min(clamp(2.25rem, 5.5cqi, 3.75rem), calc(16rem / (var(--chars, 1) * 0.4)));
+		}
 	}
 	.bio {
 		font-size: clamp(1.2rem, 2.1cqi, 1.5rem);
@@ -780,6 +987,41 @@
 		text-underline-offset: 0.25em;
 	}
 
+	/* Secciones nuevas */
+	.prose {
+		display: flex;
+		flex-direction: column;
+		gap: 1em;
+		max-width: 62ch;
+		font-size: clamp(1.1rem, 1.7cqi, 1.25rem);
+		text-wrap: pretty;
+	}
+	.prose p,
+	.lead {
+		white-space: pre-line;
+	}
+	.lead {
+		max-width: 62ch;
+		margin-bottom: 1.75rem;
+		font-size: clamp(1.1rem, 1.7cqi, 1.25rem);
+		text-wrap: pretty;
+	}
+	.after-text {
+		margin-top: 2.25rem;
+	}
+	.placeholder {
+		color: var(--muted);
+		font-style: italic;
+	}
+	.more {
+		display: inline-block;
+		margin-top: 0.6rem;
+		padding-block: 0.2rem;
+		color: var(--accent);
+		font-weight: 700;
+		text-underline-offset: 0.25em;
+	}
+
 	.add-item {
 		width: 100%;
 		min-height: 48px;
@@ -795,6 +1037,46 @@
 	.add-item:hover {
 		border-color: oklch(0.8 0.17 85);
 		color: var(--ink);
+	}
+
+	.new-section {
+		border-top: 1px solid var(--line);
+		padding-block: 2.5rem 3.5rem;
+	}
+	.new-section-h {
+		margin-bottom: 0.75rem;
+		font-weight: 700;
+	}
+	.new-section-opts {
+		display: grid;
+		gap: 0.75rem;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+	}
+	.new-section-opts button {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 1rem 1.1rem;
+		border: 2px dashed var(--line);
+		border-radius: 12px;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 0.95rem;
+		line-height: 1.45;
+		text-align: left;
+		cursor: pointer;
+	}
+	.new-section-opts strong {
+		color: var(--ink);
+		font-size: 1.05rem;
+	}
+	.new-section-opts button:hover {
+		border-color: oklch(0.8 0.17 85);
+	}
+	.new-section-opts button:focus-visible {
+		outline: 3px solid var(--accent);
+		outline-offset: 3px;
 	}
 
 	.foot {

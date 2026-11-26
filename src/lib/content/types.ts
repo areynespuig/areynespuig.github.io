@@ -73,6 +73,45 @@ export interface Project {
 	year: number | null;
 }
 
+/** Secciones que vienen de serie con la web; su título es fijo y siempre se muestran. */
+export const BUILTIN_SECTIONS = ['sobre', 'educacion', 'experiencia', 'proyectos'] as const;
+export type BuiltinSection = (typeof BUILTIN_SECTIONS)[number];
+
+/**
+ * Cómo se presenta una sección creada desde el editor:
+ * texto (como «Sobre mí»), lista con fechas (como «Experiencia») o tarjetas con imagen (como «Proyectos»).
+ */
+export type SectionLayout = 'text' | 'list' | 'cards';
+export const SECTION_LAYOUTS: readonly SectionLayout[] = ['text', 'list', 'cards'];
+
+/**
+ * Una entrada de una sección nueva. Todas las entradas tienen los mismos campos, así se puede
+ * cambiar el tipo de sección sin perder nada; cada tipo muestra solo los que usa.
+ */
+export interface SectionItem {
+	id: string;
+	title: L10n;
+	subtitle: L10n;
+	description: L10n;
+	start: number | null;
+	end: number | null;
+	ongoing: boolean;
+	image: string;
+	imageAlt: L10n;
+	url: string;
+}
+
+export interface CustomSection {
+	id: string;
+	layout: SectionLayout;
+	title: L10n;
+	/** El texto de una sección de texto, o la introducción de una lista o de unas tarjetas. */
+	body: L10n;
+	/** Lista de puntos de una sección de texto (como las competencias de «Sobre mí»). */
+	points: L10nList;
+	items: SectionItem[];
+}
+
 export interface SiteContent {
 	profile: Profile;
 	hero: Hero;
@@ -80,6 +119,10 @@ export interface SiteContent {
 	education: Education[];
 	experience: Experience[];
 	projects: Project[];
+	/** Secciones añadidas desde el editor. */
+	sections?: CustomSection[];
+	/** Orden de todas las secciones bajo la portada: las de serie y las nuevas, por su id. */
+	order?: string[];
 	meta: {
 		/** Campos que hay que revisar en algún idioma, por clave de campo. */
 		review: Record<string, Lang[]>;

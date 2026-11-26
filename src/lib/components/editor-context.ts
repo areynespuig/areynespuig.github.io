@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import type { CollectionKey } from '../content/types';
+import type { CollectionKey, SectionLayout } from '../content/types';
 
 /**
  * Lo que la web necesita saber cuando se muestra dentro del editor.
@@ -10,6 +10,8 @@ export interface EditorBridge {
 	isFlagged(target: string): boolean;
 	select(target: string): void;
 	add(collection: CollectionKey): void;
+	addSection(layout: SectionLayout): void;
+	addItem(sectionId: string): void;
 	asset(src: string): string;
 }
 

@@ -11,7 +11,8 @@
 		missing: 'Falta',
 		review: 'Revisar',
 		changed: 'Sin publicar',
-		ok: 'Al día'
+		ok: 'Al día',
+		empty: 'Opcional'
 	};
 
 	const base = $derived(`f-${info.target.replace(/[^a-z0-9]+/gi, '-')}-${field.key}`);
@@ -32,7 +33,7 @@
 {#if field.type === 'l10n' || field.type === 'l10nList'}
 	<fieldset class="group">
 		<legend class={info.single ? 'visually-hidden' : 'group-label'}>{field.label}</legend>
-		{#if field.type === 'l10nList'}<p class="hint">{field.hint}</p>{/if}
+		{#if field.hint}<p class="hint">{field.hint}</p>{/if}
 		{#each LANGS as lang (lang)}
 			{@const status = editor.status(info, field.key, lang)}
 			{@const value = field.type === 'l10nList' ? listValue(lang) : (info.obj[field.key][lang] as string)}
@@ -102,6 +103,27 @@
 		/>
 		{field.label}
 	</label>
+{:else if field.type === 'choice'}
+	<fieldset class="group">
+		<legend class="group-label">{field.label}</legend>
+		<div class="choices">
+			{#each field.options as option (option.value)}
+				<label class={['choice', info.obj[field.key] === option.value && 'is-on']}>
+					<input
+						type="radio"
+						name={base}
+						value={option.value}
+						checked={info.obj[field.key] === option.value}
+						onchange={() => editor.setValue(info, field.key, option.value)}
+					/>
+					<span>
+						<strong>{option.label}</strong>
+						<span>{option.hint}</span>
+					</span>
+				</label>
+			{/each}
+		</div>
+	</fieldset>
 {:else if field.type === 'imageFrame'}
 	<ImageFramer {editor} {info} frameKey={field.key} imageKey={field.image} label={field.label} />
 {:else if field.type === 'image' || field.type === 'pdf'}
@@ -193,9 +215,50 @@
 		border-radius: 999px;
 		padding: 2px 8px;
 	}
-	.chip.ok {
+	.chip.ok,
+	.chip.empty {
 		color: var(--muted);
 		padding-right: 0;
+	}
+	.choices {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.choice {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		padding: 10px 12px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: #fff;
+		cursor: pointer;
+	}
+	.choice:hover {
+		border-color: var(--ink);
+	}
+	.choice.is-on {
+		border-color: var(--ink);
+		box-shadow: inset 0 0 0 1px var(--ink);
+	}
+	.choice input {
+		margin: 3px 0 0;
+		width: 16px;
+		height: 16px;
+		flex: none;
+		accent-color: var(--ink);
+	}
+	.choice > span {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		font-size: 13px;
+		color: var(--muted);
+	}
+	.choice strong {
+		font-size: 14px;
+		color: var(--ink);
 	}
 	.chip.review {
 		background: #fff1c7;
@@ -210,7 +273,7 @@
 		color: #24366e;
 	}
 	textarea,
-	input:not([type='checkbox']):not([type='file']) {
+	input:not([type='checkbox']):not([type='file']):not([type='radio']) {
 		width: 100%;
 		font: inherit;
 		font-size: 14px;

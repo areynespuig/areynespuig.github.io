@@ -1,8 +1,9 @@
 import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError, type SupabaseClient } from '@supabase/supabase-js';
 import bundled from '../content/site.json';
-import { LANGS, type CollectionKey, type L10n, type Lang, type SiteContent } from '../content/types';
+import { LANGS, type CollectionKey, type L10n, type Lang, type SectionLayout, type SiteContent } from '../content/types';
+import { newSection, newSectionItem, sectionOrder } from '../content/sections';
 import { SUPABASE } from '../config';
-import { allTargets, COLLECTIONS, resolveTarget, reviewKey, type SectionId, type TargetInfo } from './schema';
+import { allTargets, resolveTarget, reviewKey, type TargetInfo } from './schema';
 import { getSupabase } from './supabase';
 
 export interface PendingAsset {
@@ -20,7 +21,7 @@ export interface Issue {
 	field: string;
 	lang: Lang;
 	kind: 'missing' | 'review';
-	section: SectionId;
+	section: string;
 }
 
 export interface Version {
@@ -28,7 +29,8 @@ export interface Version {
 	created_at: string;
 }
 
-export type FieldStatus = 'missing' | 'review' | 'changed' | 'ok';
+/** `empty`: campo opcional vacío en los tres idiomas. */
+export type FieldStatus = 'missing' | 'review' | 'changed' | 'ok' | 'empty';
 export type Phase = 'loading' | 'unconfigured' | 'login' | 'error' | 'ready';
 
 const DRAFT_KEY = 'portfolio-cms:draft';
@@ -47,6 +49,9 @@ function same(a: unknown, b: unknown): boolean {
 	return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
 }
 
+/** Listas de entradas con id: se comparan entrada a entrada. */
+const COLLECTION = /^(education|experience|projects|sections)$|\.items$/;
+
 /** Aplana el contenido a «ruta → valor» para contar cuántas cosas han cambiado. */
 function flatten(content: SiteContent): Map<string, string> {
 	const out = new Map<string, string>();
@@ -57,42 +62,44 @@ function flatten(content: SiteContent): Map<string, string> {
 			out.set(path, JSON.stringify(value));
 			return;
 		}
-		if (Array.isArray(value)) {
-			if (value.length && typeof value[0] === 'object' && value[0] && 'id' in value[0]) {
-				out.set(`${path}#order`, value.map((i) => i.id).join(','));
-				for (const item of value) walk(item, `${path}:${item.id}`);
-			} else {
-				out.set(path, JSON.stringify(value.filter((s) => String(s).trim() !== '')));
-			}
+		if (Array.isArray(value) && COLLECTION.test(path)) {
+			// El orden de «sections» no importa: las secciones se muestran según «order».
+			if (path !== 'sections') out.set(`${path}#order`, value.map((i) => i.id).join(','));
+			for (const item of value) walk(item, `${path}:${item.id}`);
+		} else if (Array.isArray(value)) {
+			out.set(path, JSON.stringify(value.filter((s) => String(s).trim() !== '')));
 		} else if (value && typeof value === 'object') {
 			for (const [k, v] of Object.entries(value)) walk(v, path ? `${path}.${k}` : k);
 		} else {
 			out.set(path, JSON.stringify(value ?? null));
 		}
 	};
-	const { meta: _meta, ...rest } = content;
+	const { meta: _meta, order: _order, ...rest } = content;
 	walk(rest, '');
+	out.set('sections#display', sectionOrder(content).join(','));
 	return out;
 }
 
-const ITEM = /^(education|experience|projects):[^.#]+/;
+/** Entradas a las que pertenece una ruta, de fuera adentro: «sections:a», «sections:a.items:b». */
+function owners(path: string): string[] {
+	return [...path.matchAll(/:[^.#:]+/g)].map((m) => path.slice(0, m.index + m[0].length));
+}
 
-/** Cuenta campos cambiados; una entrada añadida o quitada cuenta como un solo cambio. */
+/** Cuenta campos cambiados; una entrada o sección añadida o quitada cuenta como un solo cambio. */
 function countChanges(a: SiteContent, b: SiteContent): number {
 	const fa = flatten(a);
 	const fb = flatten(b);
-	const itemsA = new Set([...fa.keys()].map((k) => ITEM.exec(k)?.[0]).filter(Boolean));
-	const itemsB = new Set([...fb.keys()].map((k) => ITEM.exec(k)?.[0]).filter(Boolean));
-	const addedOrRemoved = new Set([...itemsA].filter((i) => !itemsB.has(i)).concat([...itemsB].filter((i) => !itemsA.has(i))));
-	let n = addedOrRemoved.size;
+	const ownersA = new Set([...fa.keys()].flatMap(owners));
+	const ownersB = new Set([...fb.keys()].flatMap(owners));
+	const addedOrRemoved = new Set([...ownersA].filter((o) => !ownersB.has(o)).concat([...ownersB].filter((o) => !ownersA.has(o))));
+	// Lo que hay dentro de una sección nueva o quitada no suma aparte.
+	let n = [...addedOrRemoved].filter((o) => !owners(o).slice(0, -1).some((p) => addedOrRemoved.has(p))).length;
 	for (const k of new Set([...fa.keys(), ...fb.keys()])) {
-		const item = ITEM.exec(k)?.[0];
-		if (item && addedOrRemoved.has(item)) continue;
-		if (k.endsWith('#order')) {
-			const collection = k.slice(0, -'#order'.length);
-			const sameMembers = ![...addedOrRemoved].some((i) => i!.startsWith(`${collection}:`));
-			if (sameMembers && fa.get(k) !== fb.get(k)) n++;
-			continue;
+		if (owners(k).some((o) => addedOrRemoved.has(o))) continue;
+		if (k.includes('#')) {
+			// Un cambio de orden solo cuenta si las entradas son las mismas (si no, ya se contó al añadir o quitar).
+			const list = k.slice(0, k.indexOf('#'));
+			if ([...addedOrRemoved].some((o) => o.startsWith(`${list}:`))) continue;
 		}
 		if (fa.get(k) !== fb.get(k)) n++;
 	}
@@ -101,7 +108,12 @@ function countChanges(a: SiteContent, b: SiteContent): number {
 
 /** Deja el contenido listo para guardar: sin líneas vacías ni avisos huérfanos. */
 function clean(content: SiteContent): SiteContent {
-	for (const l of LANGS) content.about.skills[l] = content.about.skills[l].map((s) => s.trim()).filter(Boolean);
+	const trimList = (list: string[]) => list.map((s) => s.trim()).filter(Boolean);
+	for (const l of LANGS) content.about.skills[l] = trimList(content.about.skills[l]);
+	for (const section of content.sections ?? []) {
+		for (const l of LANGS) section.points[l] = trimList(section.points[l] ?? []);
+	}
+	if (content.sections) content.order = sectionOrder(content);
 	const valid = new Set<string>();
 	for (const t of allTargets(content)) {
 		const info = resolveTarget(content, t);
@@ -344,8 +356,13 @@ export class Editor {
 	}
 
 	status(info: TargetInfo, key: string, lang: Lang): FieldStatus {
-		const value = (info.obj[key] as Record<Lang, unknown>)[lang];
-		if (!hasText(value)) return 'missing';
+		const field = info.obj[key] as Record<Lang, unknown>;
+		const value = field[lang];
+		if (!hasText(value)) {
+			const def = info.fields.find((f) => f.key === key);
+			const optional = !!def && 'optional' in def && def.optional;
+			return optional && !LANGS.some((l) => hasText(field[l])) ? 'empty' : 'missing';
+		}
 		if (this.draft.meta.review[reviewKey(info, key)]?.includes(lang)) return 'review';
 		const pub = this.publishedValue(info, key) as Record<Lang, unknown> | undefined;
 		if (!pub || !same(value, pub[lang])) return 'changed';
@@ -445,34 +462,81 @@ export class Editor {
 		this.reveal(`${collection}:${id}`);
 	}
 
-	move(info: TargetInfo, direction: -1 | 1) {
-		if (!info.collection) return;
-		const list = this.draft[info.collection] as Array<{ id: string }>;
-		const from = list.findIndex((i) => i.id === info.id);
-		const to = from + direction;
-		if (from < 0 || to < 0 || to >= list.length) return;
-		const [item] = list.splice(from, 1);
-		list.splice(to, 0, item);
-		this.reveal(info.target);
+	/** Crea una sección nueva al final de la página y la deja seleccionada para ponerle título. */
+	addSection(layout: SectionLayout) {
+		const id = `seccion-${Date.now().toString(36)}`;
+		const order = sectionOrder(this.draft);
+		this.draft.sections ??= [];
+		this.draft.sections.push(newSection(id, layout));
+		this.draft.order = [...order, id];
+		this.reveal(`section:${id}`);
+	}
+
+	/** Añade una entrada al principio de una sección de lista o de tarjetas. */
+	addItem(sectionId: string) {
+		const section = this.draft.sections?.find((s) => s.id === sectionId);
+		if (!section) return;
+		const id = `entrada-${Date.now().toString(36)}`;
+		section.items.unshift(newSectionItem(id));
+		this.reveal(`section:${sectionId}/${id}`);
+	}
+
+	/** Ids entre los que se mueve el bloque: las entradas de su lista, o todas las secciones si es una sección. */
+	#siblings(info: TargetInfo): string[] | null {
+		if (info.isSection) return sectionOrder(this.draft);
+		return info.list ? info.list.map((i) => i.id) : null;
 	}
 
 	canMove(info: TargetInfo, direction: -1 | 1): boolean {
-		if (!info.collection) return false;
-		const list = this.draft[info.collection] as Array<{ id: string }>;
-		const to = list.findIndex((i) => i.id === info.id) + direction;
-		return to >= 0 && to < list.length;
+		const ids = this.#siblings(info);
+		if (!ids || !info.id) return false;
+		const to = ids.indexOf(info.id) + direction;
+		return to >= 0 && to < ids.length;
+	}
+
+	move(info: TargetInfo, direction: -1 | 1) {
+		if (!this.canMove(info, direction)) return;
+		if (info.isSection) {
+			const order = sectionOrder(this.draft);
+			const from = order.indexOf(info.id!);
+			[order[from], order[from + direction]] = [order[from + direction], order[from]];
+			this.draft.order = order;
+		} else if (info.list) {
+			const from = info.list.findIndex((i) => i.id === info.id);
+			const [item] = info.list.splice(from, 1);
+			info.list.splice(from + direction, 0, item);
+		}
+		this.reveal(info.target);
+	}
+
+	#dropReviews(target: string) {
+		for (const k of Object.keys(this.draft.meta.review)) {
+			if (k.startsWith(`${target}.`) || k.startsWith(`${target}/`)) delete this.draft.meta.review[k];
+		}
 	}
 
 	remove(info: TargetInfo) {
-		if (!info.collection) return;
+		if (info.isSection) {
+			if (info.builtin) return;
+			const ok = confirm(`¿Quitar la sección «${info.title}» con todo lo que contiene? Puedes recuperarla con «Descartar» mientras no publiques.`);
+			if (!ok) return;
+			this.draft.sections = (this.draft.sections ?? []).filter((s) => s.id !== info.id);
+			this.draft.order = sectionOrder(this.draft);
+			this.#dropReviews(info.target);
+			this.selected = 'hero.subtitle';
+			return;
+		}
+		if (!info.list || !info.id) return;
 		const ok = confirm(`¿Quitar «${info.title}» de la web? Puedes recuperarlo con «Descartar» mientras no publiques.`);
 		if (!ok) return;
-		const list = this.draft[info.collection] as Array<{ id: string }>;
+		const list = info.list;
 		const index = list.findIndex((i) => i.id === info.id);
 		if (index >= 0) list.splice(index, 1);
-		for (const k of Object.keys(this.draft.meta.review)) if (k.startsWith(`${info.target}.`)) delete this.draft.meta.review[k];
+		this.#dropReviews(info.target);
 		const next = list[Math.min(index, list.length - 1)];
-		this.selected = COLLECTIONS[info.collection] && next ? `${info.collection}:${next.id}` : 'hero.subtitle';
+		// El destino de la entrada siguiente es el mismo con otro id al final («projects:», «section:a/»…).
+		const prefix = info.target.slice(0, -info.id.length);
+		this.selected = next ? `${prefix}${next.id}` : (info.parent ?? 'hero.subtitle');
 	}
 
 	discard() {
