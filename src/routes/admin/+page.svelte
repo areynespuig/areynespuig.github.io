@@ -3,6 +3,8 @@
 	import { onMount } from 'svelte';
 	import { dev } from '$app/env';
 	import Portfolio from '#lib/components/Portfolio.svelte';
+	import ProjectPage from '#lib/components/ProjectPage.svelte';
+	import { projectPath } from '#lib/content/project-pages.ts';
 	import { provideEditor } from '#lib/components/editor-context.ts';
 	import { Editor } from '#lib/admin/editor.svelte.ts';
 	import Gate from '#lib/admin/Gate.svelte';
@@ -20,6 +22,8 @@
 		add: (c) => editor.add(c),
 		addSection: (l) => editor.addSection(l),
 		addItem: (id) => editor.addItem(id),
+		addPageBlock: (id) => editor.addPageBlock(id),
+		openHome: () => editor.openHome(),
 		asset: (s) => editor.asset(s)
 	});
 
@@ -115,11 +119,15 @@
 		<section class="stage" aria-label="Vista previa de la web" bind:clientWidth={stageWidth}>
 			<div class="frame" style:width="{deviceWidth * zoom}px">
 				<div class="url">
-					<b>{host}{LANG_PATHS[editor.lang]}</b>
+					<b>{host}{editor.viewProject ? projectPath(editor.lang, editor.viewProject.page.slug || '…') : LANG_PATHS[editor.lang]}</b>
 					<span>{editor.changes ? 'Vista previa con cambios sin publicar' : 'Igual que la web publicada'}</span>
 				</div>
 				<div class="viewport" style:width="{deviceWidth}px" style:zoom>
-					<Portfolio content={editor.draft} lang={editor.lang} scheme={editor.scheme} />
+					{#if editor.viewProject}
+						<ProjectPage content={editor.draft} project={editor.viewProject} lang={editor.lang} scheme={editor.scheme} />
+					{:else}
+						<Portfolio content={editor.draft} lang={editor.lang} scheme={editor.scheme} />
+					{/if}
 				</div>
 			</div>
 		</section>

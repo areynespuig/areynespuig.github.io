@@ -10,7 +10,13 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			// 404.html abre la app en las direcciones que no se generaron: así la página de un proyecto
+			// recién publicado se ve (leyéndola de Supabase) antes de que GitHub regenere la web.
+			adapter: adapter({ fallback: '404.html' }),
+			prerender: {
+				// Sin ningún proyecto con página, las rutas de proyectos no se generan, y es correcto.
+				handleUnseenRoutes: 'ignore'
+			}
 		})
 	]
 });

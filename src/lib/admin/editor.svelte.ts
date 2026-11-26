@@ -2,7 +2,9 @@ import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError, type Supa
 import bundled from '../content/site.json';
 import { LANGS, type CollectionKey, type L10n, type Lang, type SectionLayout, type SiteContent } from '../content/types';
 import { newSection, newSectionItem, sectionOrder } from '../content/sections';
+import { newPageBlock, newProjectPage, slugify, uniqueSlug } from '../content/project-pages';
 import { SUPABASE } from '../config';
+import { fetchLatestContent } from '../content/remote';
 import { allTargets, resolveTarget, reviewKey, type TargetInfo } from './schema';
 import { getSupabase } from './supabase';
 
@@ -30,6 +32,9 @@ export interface Version {
 }
 
 /** `empty`: campo opcional vacío en los tres idiomas. */
+/** Qué muestra la vista previa: la portada o la página de un proyecto. */
+export type View = { kind: 'home' } | { kind: 'project'; id: string };
+
 export type FieldStatus = 'missing' | 'review' | 'changed' | 'ok' | 'empty';
 export type Phase = 'loading' | 'unconfigured' | 'login' | 'error' | 'ready';
 
@@ -50,7 +55,7 @@ function same(a: unknown, b: unknown): boolean {
 }
 
 /** Listas de entradas con id: se comparan entrada a entrada. */
-const COLLECTION = /^(education|experience|projects|sections)$|\.items$/;
+const COLLECTION = /^(education|experience|projects|sections)$|\.(items|blocks)$/;
 
 /** Aplana el contenido a «ruta → valor» para contar cuántas cosas han cambiado. */
 function flatten(content: SiteContent): Map<string, string> {
@@ -114,6 +119,16 @@ function clean(content: SiteContent): SiteContent {
 		for (const l of LANGS) section.points[l] = trimList(section.points[l] ?? []);
 	}
 	if (content.sections) content.order = sectionOrder(content);
+	// Direcciones de las páginas de proyecto: válidas y sin repetir.
+	const slugs = new Set<string>();
+	for (const project of content.projects) {
+		if (!project.page) continue;
+		const base = slugify(project.page.slug) || slugify(project.title) || 'proyecto';
+		let slug = base;
+		for (let n = 2; slugs.has(slug); n++) slug = `${base}-${n}`;
+		slugs.add(slug);
+		project.page.slug = slug;
+	}
 	const valid = new Set<string>();
 	for (const t of allTargets(content)) {
 		const info = resolveTarget(content, t);
@@ -156,6 +171,11 @@ function slug(name: string): string {
 	);
 }
 
+/** Id para una entrada nueva: la hora y unas letras al azar, para que dos creadas a la vez no coincidan. */
+function uid(): string {
+	return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
 export function formatDate(iso: string): string {
 	return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
 }
@@ -187,6 +207,7 @@ export class Editor {
 	device = $state<'desktop' | 'mobile'>('desktop');
 	scheme = $state<'light' | 'dark'>('light');
 	selected = $state('hero.subtitle');
+	view = $state<View>({ kind: 'home' });
 
 	phase = $state<Phase>('loading');
 	/** Editor sin Supabase (solo en desarrollo local): se puede editar, pero no publicar. */
@@ -203,6 +224,13 @@ export class Editor {
 	toast = $state<{ text: string; tone: 'ok' | 'error' } | null>(null);
 
 	changes = $derived(countChanges(this.draft, this.published));
+	/** Proyecto cuya página se ve en la vista previa (si ya no existe, se vuelve a la portada). */
+	viewProject = $derived.by(() => {
+		const view = this.view;
+		if (view.kind !== 'project') return undefined;
+		const project = this.draft.projects.find((p) => p.id === view.id);
+		return project?.page ? (project as typeof project & { page: NonNullable<typeof project.page> }) : undefined;
+	});
 	info = $derived(resolveTarget(this.draft, this.selected));
 	issues = $derived(this.collectIssues());
 
@@ -217,6 +245,9 @@ export class Editor {
 		if (!this.#supabase) {
 			if (options.allowOffline) {
 				this.offline = true;
+				// En local se parte de lo publicado (se puede leer sin sesión); si no se puede, del contenido incluido.
+				const latest = await fetchLatestContent();
+				if (latest) this.published = latest;
 				this.#restoreDraft();
 				this.phase = 'ready';
 				this.ready = true;
@@ -320,7 +351,7 @@ export class Editor {
 	notify(text: string, tone: 'ok' | 'error' = 'ok') {
 		this.toast = { text, tone };
 		clearTimeout(this.#toastTimer);
-		this.#toastTimer = setTimeout(() => (this.toast = null), tone === 'error' ? 9000 : 4500);
+		this.#toastTimer = setTimeout(() => (this.toast = null), tone === 'error' ? 15000 : 4500);
 	}
 
 	// Selección
@@ -329,8 +360,12 @@ export class Editor {
 		this.selected = target;
 	}
 
-	/** Selecciona un bloque y lo lleva a la vista previa. */
+	/** Selecciona un bloque y lo lleva a la vista previa (cambiando de página si está en otra). */
 	reveal(target: string, lang?: Lang) {
+		const pageOf = /^page:([^/]+)/.exec(target)?.[1];
+		const onThisPage = this.viewProject && target === `projects:${this.viewProject.id}`;
+		if (pageOf) this.view = { kind: 'project', id: pageOf };
+		else if (!onThisPage) this.view = { kind: 'home' };
 		this.selected = target;
 		if (lang) this.lang = lang;
 		requestAnimationFrame(() => {
@@ -450,7 +485,7 @@ export class Editor {
 	}
 
 	add(collection: CollectionKey) {
-		const id = `${collection === 'education' ? 'estudio' : collection === 'experience' ? 'experiencia' : 'proyecto'}-${Date.now().toString(36)}`;
+		const id = `${collection === 'education' ? 'estudio' : collection === 'experience' ? 'experiencia' : 'proyecto'}-${uid()}`;
 		const empty = (): L10n => ({ es: '', ca: '', en: '' });
 		if (collection === 'education') {
 			this.draft.education.unshift({ id, title: empty(), school: empty(), start: null, end: null, ongoing: false });
@@ -464,7 +499,7 @@ export class Editor {
 
 	/** Crea una sección nueva al final de la página y la deja seleccionada para ponerle título. */
 	addSection(layout: SectionLayout) {
-		const id = `seccion-${Date.now().toString(36)}`;
+		const id = `seccion-${uid()}`;
 		const order = sectionOrder(this.draft);
 		this.draft.sections ??= [];
 		this.draft.sections.push(newSection(id, layout));
@@ -476,9 +511,55 @@ export class Editor {
 	addItem(sectionId: string) {
 		const section = this.draft.sections?.find((s) => s.id === sectionId);
 		if (!section) return;
-		const id = `entrada-${Date.now().toString(36)}`;
+		const id = `entrada-${uid()}`;
 		section.items.unshift(newSectionItem(id));
 		this.reveal(`section:${sectionId}/${id}`);
+	}
+
+	// Páginas de proyecto
+
+	/** Vuelve a mostrar la portada en la vista previa. */
+	openHome() {
+		const from = this.viewProject;
+		this.view = { kind: 'home' };
+		if (from) this.reveal(`projects:${from.id}`);
+	}
+
+	openProjectPage(projectId: string) {
+		this.reveal(`page:${projectId}`);
+		requestAnimationFrame(() => document.querySelector('.stage')?.scrollTo({ top: 0 }));
+	}
+
+	createProjectPage(projectId: string) {
+		const project = this.draft.projects.find((p) => p.id === projectId);
+		if (!project || project.page) return;
+		project.page = newProjectPage(uniqueSlug(this.draft, project.title, project.id));
+		this.openProjectPage(projectId);
+	}
+
+	removeProjectPage(projectId: string) {
+		const project = this.draft.projects.find((p) => p.id === projectId);
+		if (!project?.page) return;
+		const ok = confirm(`¿Quitar la página de «${project.title || 'este proyecto'}» con todo su contenido? Puedes recuperarla con «Descartar» mientras no publiques.`);
+		if (!ok) return;
+		delete project.page;
+		this.#dropReviews(`page:${projectId}`);
+		this.view = { kind: 'home' };
+		this.reveal(`projects:${projectId}`);
+	}
+
+	/** Añade un bloque al final de la página: en un tutorial, los pasos se escriben en orden. */
+	addPageBlock(projectId: string) {
+		const page = this.draft.projects.find((p) => p.id === projectId)?.page;
+		if (!page) return;
+		const id = `bloque-${uid()}`;
+		page.blocks.push(newPageBlock(id));
+		this.reveal(`page:${projectId}/${id}`);
+	}
+
+	/** Otra página de proyecto ya usa esta dirección. */
+	slugTaken(projectId: string, slug: string): boolean {
+		return this.draft.projects.some((p) => p.id !== projectId && p.page?.slug === slug);
 	}
 
 	/** Ids entre los que se mueve el bloque: las entradas de su lista, o todas las secciones si es una sección. */
@@ -511,7 +592,7 @@ export class Editor {
 
 	#dropReviews(target: string) {
 		for (const k of Object.keys(this.draft.meta.review)) {
-			if (k.startsWith(`${target}.`) || k.startsWith(`${target}/`)) delete this.draft.meta.review[k];
+			if (k === target || k.startsWith(`${target}.`) || k.startsWith(`${target}/`)) delete this.draft.meta.review[k];
 		}
 	}
 
@@ -533,6 +614,11 @@ export class Editor {
 		const index = list.findIndex((i) => i.id === info.id);
 		if (index >= 0) list.splice(index, 1);
 		this.#dropReviews(info.target);
+		// Un proyecto se lleva su página.
+		if (info.target.startsWith('projects:')) {
+			this.#dropReviews(`page:${info.id}`);
+			if (this.view.kind === 'project' && this.view.id === info.id) this.view = { kind: 'home' };
+		}
 		const next = list[Math.min(index, list.length - 1)];
 		// El destino de la entrada siguiente es el mismo con otro id al final («projects:», «section:a/»…).
 		const prefix = info.target.slice(0, -info.id.length);
@@ -640,19 +726,28 @@ export class Editor {
 	 */
 	async rebuild(afterSave = false) {
 		if (!this.#supabase) return;
-		const { error } = await this.#supabase.functions.invoke('publish', { method: 'POST' });
-		if (error) {
-			const reason = await functionErrorMessage(error);
-			this.needsRebuild = true;
-			this.notify(
-				afterSave
-					? `Publicado: ya se ve en la web. Pero GitHub no ha regenerado la versión para buscadores. ${reason}`
-					: `GitHub no ha regenerado la web. ${reason}`,
-				'error'
-			);
-			return;
+		// Pulsado a mano desde «Sesión»: evita lanzar dos regeneraciones seguidas.
+		if (!afterSave) {
+			if (this.busy) return;
+			this.busy = true;
 		}
-		this.needsRebuild = false;
-		this.notify(afterSave ? 'Publicado. Ya se ve en la web.' : 'Hecho. GitHub regenerará la web en uno o dos minutos.', 'ok');
+		try {
+			const { error } = await this.#supabase.functions.invoke('publish', { method: 'POST' });
+			if (error) {
+				const reason = await functionErrorMessage(error);
+				this.needsRebuild = true;
+				this.notify(
+					afterSave
+						? `Publicado: ya se ve en la web. Pero GitHub no ha regenerado la versión para buscadores. ${reason}`
+						: `GitHub no ha regenerado la web. ${reason}`,
+					'error'
+				);
+				return;
+			}
+			this.needsRebuild = false;
+			this.notify(afterSave ? 'Publicado. Ya se ve en la web.' : 'Hecho. GitHub regenerará la web en uno o dos minutos.', 'ok');
+		} finally {
+			if (!afterSave) this.busy = false;
+		}
 	}
 }

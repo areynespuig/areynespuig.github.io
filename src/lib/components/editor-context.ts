@@ -12,6 +12,9 @@ export interface EditorBridge {
 	add(collection: CollectionKey): void;
 	addSection(layout: SectionLayout): void;
 	addItem(sectionId: string): void;
+	addPageBlock(projectId: string): void;
+	/** En la vista previa de una página de proyecto, vuelve a la portada. */
+	openHome(): void;
 	asset(src: string): string;
 }
 

@@ -16,6 +16,14 @@ function corsHeaders(origin: string | null): Record<string, string> {
 	};
 }
 
+/** Qué hay que revisar según la respuesta de GitHub. */
+const GITHUB_HINTS: Record<number, string> = {
+	401: 'El token de GitHub no es válido o ha caducado. Crea uno nuevo y guárdalo en el secreto GITHUB_TOKEN de Supabase.',
+	403: 'El token de GitHub no tiene permiso para lanzar Actions. En el token, da «Actions: Read and write» a este repositorio.',
+	404: `El token de GitHub no tiene acceso a ${REPO}. Créalo con la cuenta areynespuig y elige este repositorio en «Repository access».`,
+	422: 'GitHub no deja lanzar deploy.yml a mano. Comprueba que el flujo tiene «workflow_dispatch» en la rama main.'
+};
+
 function reply(body: unknown, status: number, headers: Record<string, string>): Response {
 	return new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
 }
@@ -39,12 +47,19 @@ Deno.serve(async (req) => {
 	});
 
 	const { data: userData, error: userError } = await supabase.auth.getUser(jwt);
-	if (userError || !userData.user) return reply({ error: 'La sesión no es válida. Vuelve a entrar.' }, 401, headers);
+	if (userError || !userData.user) {
+		console.error('Sesión rechazada:', userError?.message);
+		return reply({ error: 'La sesión no es válida. Vuelve a entrar.' }, 401, headers);
+	}
 
 	const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
-	if (adminError || isAdmin !== true) return reply({ error: 'Esta cuenta no puede publicar.' }, 403, headers);
+	if (adminError || isAdmin !== true) {
+		console.error('Sin permiso de administrador:', adminError?.message);
+		return reply({ error: 'Esta cuenta no puede publicar.' }, 403, headers);
+	}
 
-	const token = Deno.env.get('GITHUB_TOKEN');
+	// Sin espacios ni saltos de línea: al pegar el token es fácil arrastrar alguno y GitHub lo rechaza.
+	const token = Deno.env.get('GITHUB_TOKEN')?.trim();
 	if (!token) return reply({ error: 'Falta el secreto GITHUB_TOKEN en Supabase.' }, 500, headers);
 
 	const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
@@ -57,7 +72,12 @@ Deno.serve(async (req) => {
 		},
 		body: JSON.stringify({ ref: 'main' })
 	});
-	if (!res.ok) return reply({ error: `GitHub no ha aceptado la petición (${res.status}).` }, 502, headers);
+	if (!res.ok) {
+		const detail = ((await res.json().catch(() => null)) as { message?: string } | null)?.message ?? '';
+		console.error('GitHub ha rechazado la petición:', res.status, detail);
+		const hint = GITHUB_HINTS[res.status] ?? `GitHub no ha aceptado la petición (error ${res.status}).`;
+		return reply({ error: detail ? `${hint} GitHub dice: «${detail}».` : hint }, 502, headers);
+	}
 
 	return reply({ ok: true }, 202, headers);
 });

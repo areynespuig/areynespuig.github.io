@@ -26,6 +26,12 @@ export const UI = {
 		present: 'actualidad',
 		viewProject: 'Ver proyecto',
 		more: 'Ver más',
+		howItWorks: 'Cómo funciona',
+		backToProjects: 'Volver a los proyectos',
+		step: 'Paso',
+		notFoundTitle: 'Esta página no existe',
+		notFoundText: 'Puede que la dirección esté mal escrita o que la página se haya quitado.',
+		goHome: 'Ir a la portada',
 		newTab: '(se abre en una pestaña nueva)',
 		themeToDark: 'Cambiar a tema oscuro',
 		themeToLight: 'Cambiar a tema claro',
@@ -44,6 +50,12 @@ export const UI = {
 		present: 'actualitat',
 		viewProject: 'Veure projecte',
 		more: 'Veure més',
+		howItWorks: 'Com funciona',
+		backToProjects: 'Tornar als projectes',
+		step: 'Pas',
+		notFoundTitle: 'Aquesta pàgina no existeix',
+		notFoundText: "Potser l'adreça està mal escrita o la pàgina s'ha tret.",
+		goHome: 'Anar a la portada',
 		newTab: "(s'obre en una pestanya nova)",
 		themeToDark: 'Canviar a tema fosc',
 		themeToLight: 'Canviar a tema clar',
@@ -62,6 +74,12 @@ export const UI = {
 		present: 'present',
 		viewProject: 'View project',
 		more: 'Learn more',
+		howItWorks: 'How it works',
+		backToProjects: 'Back to projects',
+		step: 'Step',
+		notFoundTitle: 'This page does not exist',
+		notFoundText: 'The address may be mistyped, or the page may have been removed.',
+		goHome: 'Go to the home page',
 		newTab: '(opens in a new tab)',
 		themeToDark: 'Switch to dark theme',
 		themeToLight: 'Switch to light theme',
@@ -69,6 +87,13 @@ export const UI = {
 		missing: 'Missing in English'
 	}
 } satisfies Record<Lang, unknown>;
+
+/** Idioma de una dirección de la web: /ca/… es catalán, /en/… inglés y el resto castellano. */
+export function langFromPath(path: string): Lang {
+	if (path === '/ca' || path.startsWith('/ca/')) return 'ca';
+	if (path === '/en' || path.startsWith('/en/')) return 'en';
+	return 'es';
+}
 
 const FALLBACK: Lang[] = ['es', 'ca', 'en'];
 

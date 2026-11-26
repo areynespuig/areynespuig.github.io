@@ -1,4 +1,4 @@
-import type { BuiltinSection, CollectionKey, CustomSection, Education, Experience, Project, SectionItem, SiteContent } from '../content/types';
+import type { BuiltinSection, CollectionKey, CustomSection, Education, Experience, PageBlock, Project, SectionItem, SiteContent } from '../content/types';
 import { isBuiltin, LAYOUT_INFO, sectionOrder } from '../content/sections';
 import { SECTION_LAYOUTS } from '../content/types';
 
@@ -37,7 +37,9 @@ export type FieldDef =
 	| { key: string; label: string; type: 'image' | 'pdf'; hint?: string }
 	/** Zoom y posición de una imagen dentro de su recuadro; `image` es el campo con la imagen. */
 	| { key: string; label: string; type: 'imageFrame'; image: string }
-	| { key: string; label: string; type: 'choice'; options: { value: string; label: string; hint: string }[] };
+	| { key: string; label: string; type: 'choice'; options: { value: string; label: string; hint: string }[] }
+	/** Dirección de la página de un proyecto (solo minúsculas, números y guiones). */
+	| { key: string; label: string; type: 'slug' };
 
 export interface TargetInfo {
 	target: string;
@@ -56,6 +58,8 @@ export interface TargetInfo {
 	isSection?: boolean;
 	/** Sección de serie: se puede mover, pero no quitar ni cambiar su título. */
 	builtin?: boolean;
+	/** El bloque está en la página de este proyecto (id), no en la portada. */
+	pageOf?: string;
 	/** Bloque de un único texto: el inspector no repite su etiqueta. */
 	single?: boolean;
 }
@@ -98,7 +102,7 @@ export const COLLECTIONS: Record<
 			{ key: 'title', label: 'Nombre', type: 'text' },
 			{ key: 'description', label: 'Descripción', type: 'l10n', long: true },
 			{ key: 'image', label: 'Imagen', type: 'image' },
-			{ key: 'imageAlt', label: 'Descripción de la imagen', type: 'l10n' },
+			{ key: 'imageAlt', label: 'Descripción de la imagen', type: 'l10n', optional: true },
 			{ key: 'url', label: 'Enlace', type: 'url', placeholder: 'https://' },
 			{ key: 'year', label: 'Año', type: 'year' }
 		]
@@ -206,6 +210,57 @@ function resolveSectionTarget(c: SiteContent, target: string): TargetInfo | null
 	};
 }
 
+const PAGE_FIELDS: FieldDef[] = [
+	{ key: 'slug', label: 'Dirección de la página', type: 'slug' },
+	{
+		key: 'intro',
+		label: 'Introducción',
+		type: 'l10n',
+		long: true,
+		optional: true,
+		hint: 'Va debajo del título. Si la dejas vacía, se usa la descripción de la tarjeta del proyecto.'
+	},
+	{ key: 'steps', label: 'Numerar los bloques como pasos (para un tutorial)', type: 'bool' }
+];
+
+const BLOCK_FIELDS: FieldDef[] = [
+	{ key: 'title', label: 'Título', type: 'l10n' },
+	{ key: 'body', label: 'Texto', type: 'l10n', long: true, optional: true, hint: 'Deja una línea en blanco para empezar otro párrafo.' },
+	{ key: 'image', label: 'Imagen', type: 'image', hint: 'Opcional: una captura o una foto que acompañe el texto.' },
+	{ key: 'imageAlt', label: 'Descripción de la imagen', type: 'l10n', optional: true }
+];
+
+function blockTitle(block: PageBlock): string {
+	const t = block.title;
+	return t.es.trim() || t.ca.trim() || t.en.trim() || 'Bloque sin título';
+}
+
+/** Bloques de la página de un proyecto: «page:proyecto» (ajustes) y «page:proyecto/bloque» (cada bloque). */
+function resolvePageTarget(c: SiteContent, target: string): TargetInfo | null {
+	const match = /^page:([^/]+)(?:\/(.+))?$/.exec(target);
+	if (!match) return null;
+	const [, projectId, blockId] = match;
+	const project = c.projects.find((p) => p.id === projectId);
+	if (!project?.page) return null;
+	const name = project.title.trim() || COLLECTIONS.projects.fresh;
+	if (!blockId) {
+		return { target, title: `Página de «${name}»`, section: 'proyectos', obj: project.page, fields: PAGE_FIELDS, pageOf: project.id };
+	}
+	const block = project.page.blocks.find((b) => b.id === blockId);
+	if (!block) return null;
+	return {
+		target,
+		title: blockTitle(block),
+		section: 'proyectos',
+		obj: block,
+		fields: BLOCK_FIELDS,
+		list: project.page.blocks,
+		id: block.id,
+		parent: `page:${project.id}`,
+		pageOf: project.id
+	};
+}
+
 /** Traduce un identificador de bloque («hero.subtitle», «projects:salutsegura»…) a lo que se puede editar. */
 export function resolveTarget(c: SiteContent, target: string): TargetInfo | null {
 	switch (target) {
@@ -251,6 +306,7 @@ export function resolveTarget(c: SiteContent, target: string): TargetInfo | null
 			});
 	}
 	if (target.startsWith('section:')) return resolveSectionTarget(c, target);
+	if (target.startsWith('page:')) return resolvePageTarget(c, target);
 	const match = /^(education|experience|projects):(.+)$/.exec(target);
 	if (!match) return null;
 	const collection = match[1] as CollectionKey;
@@ -280,6 +336,7 @@ export function allTargets(c: SiteContent): string[] {
 		...c.education.map((i) => `education:${i.id}`),
 		...c.experience.map((i) => `experience:${i.id}`),
 		...c.projects.map((i) => `projects:${i.id}`),
+		...c.projects.flatMap((p) => (p.page ? [`page:${p.id}`, ...p.page.blocks.map((b) => `page:${p.id}/${b.id}`)] : [])),
 		// Las entradas de una sección de texto no se ven, así que no generan avisos.
 		...(c.sections ?? []).flatMap((s) => [
 			`section:${s.id}`,
