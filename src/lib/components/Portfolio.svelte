@@ -104,6 +104,18 @@
 	{#if missing(value)}<span class="missing">{ui.missing}</span>{:else}{text(value)}{/if}
 {/snippet}
 
+{#snippet cardImage(src: string, alt: L10n, name: string)}
+	{#if src}
+		<figure>
+			<img src={asset(src)} alt={pick(alt, lang)} loading="lazy" />
+		</figure>
+	{:else if editing}
+		<figure class="no-image"><span class="no-image-note">Sin imagen</span></figure>
+	{:else}
+		<figure class="no-image" aria-hidden="true"><span>{name}</span></figure>
+	{/if}
+{/snippet}
+
 {#snippet heading(id: string)}
 	<div class="block-head">
 		<Editable target={`section:${id}`} label={`Sección ${sectionTitle(id)}`} as="div" block>
@@ -220,19 +232,13 @@
 						<li>
 							<Editable target={`projects:${item.id}`} label={item.title || 'Proyecto sin nombre'} as="div" block>
 								<article class="card">
-									{#if item.image}
-										<figure>
-											<img src={asset(item.image)} alt={pick(item.imageAlt, lang)} loading="lazy" />
-										</figure>
-									{:else if editing}
-										<figure class="no-image">Sin imagen</figure>
-									{/if}
+									{@render cardImage(item.image, item.imageAlt, item.title)}
 									<div class="card-body">
-										<h3>{item.title || (editing ? 'Proyecto sin nombre' : '')}</h3>
-										{#if item.year}<p class="year">{item.year}</p>{/if}
-										<p>{@render say(item.description)}</p>
-										{#if (item.page && isValidSlug(item.page.slug)) || item.url}
-											<div class="card-links">
+										<h3 title={item.title}>{item.title || (editing ? 'Proyecto sin nombre' : '')}</h3>
+										<p class="year">{item.year ?? ''}</p>
+										<p class="card-text" title={text(item.description)}>{@render say(item.description)}</p>
+										<div class="card-links">
+											{#if (item.page && isValidSlug(item.page.slug)) || item.url}
 												{#if item.page && isValidSlug(item.page.slug)}
 													<a class="card-page" href={projectPath(lang, item.page.slug)}>
 														{ui.howItWorks}<span class="visually-hidden">: {item.title}</span>
@@ -243,8 +249,8 @@
 														{ui.viewProject}<span class="visually-hidden"> {item.title} {ui.newTab}</span>
 													</a>
 												{/if}
-											</div>
-										{/if}
+											{/if}
+										</div>
 									</div>
 								</article>
 							</Editable>
@@ -328,22 +334,20 @@
 								<li>
 									<Editable target={`${target}/${item.id}`} label={pick(item.title, lang) || 'Tarjeta sin título'} as="div" block>
 										<article class="card">
-											{#if item.image}
-												<figure>
-													<img src={asset(item.image)} alt={pick(item.imageAlt, lang)} loading="lazy" />
-												</figure>
-											{:else if editing}
-												<figure class="no-image">Sin imagen</figure>
-											{/if}
+											{@render cardImage(item.image, item.imageAlt, pick(item.title, lang))}
 											<div class="card-body">
-												<h3>{@render say(item.title)}</h3>
-												{#if item.start}<p class="year">{item.start}</p>{/if}
-												{#if hasText(item.description)}<p>{@render say(item.description)}</p>{/if}
-												{#if item.url}
-													<a href={link(item.url)} target="_blank" rel="noopener">
-														{ui.more}<span class="visually-hidden"> {pick(item.title, lang)} {ui.newTab}</span>
-													</a>
-												{/if}
+												<h3 title={pick(item.title, lang)}>{@render say(item.title)}</h3>
+												<p class="year">{item.start ?? ''}</p>
+												<p class="card-text" title={text(item.description)}>
+													{#if hasText(item.description)}{@render say(item.description)}{/if}
+												</p>
+												<div class="card-links">
+													{#if item.url}
+														<a href={link(item.url)} target="_blank" rel="noopener">
+															{ui.more}<span class="visually-hidden"> {pick(item.title, lang)} {ui.newTab}</span>
+														</a>
+													{/if}
+												</div>
 											</div>
 										</article>
 									</Editable>
@@ -882,21 +886,45 @@
 		background: var(--surface);
 		overflow: hidden;
 	}
+	/* En el editor, la tarjeta ocupa toda la celda igual que en la web. */
+	.cards > li > :global(.editable),
+	.cards > li > :global(.editable) > :global(.editable-content) {
+		height: 100%;
+	}
+	/* La imagen llena el recuadro (sin bandas); si es transparente, se ve sobre blanco. */
 	.card figure {
 		aspect-ratio: 16 / 9;
-		background: var(--sunken);
-		display: grid;
-		place-items: center;
-		padding: 1.5rem;
+		overflow: hidden;
+		background: #fff;
 	}
 	.card figure img {
-		max-width: 100%;
-		max-height: 100%;
-		object-fit: contain;
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: center top;
 	}
 	.card .no-image {
-		color: var(--muted);
+		display: grid;
+		place-items: center;
+		padding: 1.25rem;
+		background: color-mix(in oklch, var(--accent) 14%, var(--sunken));
+		color: var(--accent);
+		font-family: var(--display);
+		font-weight: 800;
+		font-stretch: 75%;
+		font-size: 2.25rem;
+		line-height: 1;
+		text-align: center;
+		overflow-wrap: anywhere;
+	}
+	.card .no-image-note {
+		font-family: var(--body);
+		font-stretch: 100%;
+		font-weight: 400;
+		font-size: 1rem;
 		font-style: italic;
+		color: var(--muted);
 	}
 	.card-body {
 		flex: 1;
@@ -905,16 +933,30 @@
 		gap: 0.5rem;
 		padding: 1.25rem 1.25rem 1.4rem;
 	}
+	/* Todas las tarjetas miden lo mismo: título en una línea y texto en tres, cortados con «…». */
 	.card h3 {
 		font-family: var(--display);
 		font-weight: 800;
 		font-stretch: 75%;
 		font-size: 1.85rem;
-		line-height: 1;
+		line-height: 1.05;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.card .year {
+		min-height: 1.6em;
 		color: var(--muted);
 		font-size: 0.95rem;
+		line-height: 1.6;
+	}
+	.card-text {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		overflow: hidden;
+		min-height: calc(3lh);
 	}
 	.card a {
 		align-self: flex-start;
@@ -923,12 +965,9 @@
 		font-weight: 700;
 		text-underline-offset: 0.25em;
 	}
-	/* Las secciones nuevas en tarjetas ponen el enlace suelto al final. */
-	.card-body > a {
-		margin-top: auto;
-	}
 	.card-links {
 		margin-top: auto;
+		min-height: 2.6rem;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
