@@ -320,7 +320,7 @@ export class Editor {
 	notify(text: string, tone: 'ok' | 'error' = 'ok') {
 		this.toast = { text, tone };
 		clearTimeout(this.#toastTimer);
-		this.#toastTimer = setTimeout(() => (this.toast = null), tone === 'error' ? 9000 : 4500);
+		this.#toastTimer = setTimeout(() => (this.toast = null), tone === 'error' ? 15000 : 4500);
 	}
 
 	// Selección
@@ -640,19 +640,28 @@ export class Editor {
 	 */
 	async rebuild(afterSave = false) {
 		if (!this.#supabase) return;
-		const { error } = await this.#supabase.functions.invoke('publish', { method: 'POST' });
-		if (error) {
-			const reason = await functionErrorMessage(error);
-			this.needsRebuild = true;
-			this.notify(
-				afterSave
-					? `Publicado: ya se ve en la web. Pero GitHub no ha regenerado la versión para buscadores. ${reason}`
-					: `GitHub no ha regenerado la web. ${reason}`,
-				'error'
-			);
-			return;
+		// Pulsado a mano desde «Sesión»: evita lanzar dos regeneraciones seguidas.
+		if (!afterSave) {
+			if (this.busy) return;
+			this.busy = true;
 		}
-		this.needsRebuild = false;
-		this.notify(afterSave ? 'Publicado. Ya se ve en la web.' : 'Hecho. GitHub regenerará la web en uno o dos minutos.', 'ok');
+		try {
+			const { error } = await this.#supabase.functions.invoke('publish', { method: 'POST' });
+			if (error) {
+				const reason = await functionErrorMessage(error);
+				this.needsRebuild = true;
+				this.notify(
+					afterSave
+						? `Publicado: ya se ve en la web. Pero GitHub no ha regenerado la versión para buscadores. ${reason}`
+						: `GitHub no ha regenerado la web. ${reason}`,
+					'error'
+				);
+				return;
+			}
+			this.needsRebuild = false;
+			this.notify(afterSave ? 'Publicado. Ya se ve en la web.' : 'Hecho. GitHub regenerará la web en uno o dos minutos.', 'ok');
+		} finally {
+			if (!afterSave) this.busy = false;
+		}
 	}
 }

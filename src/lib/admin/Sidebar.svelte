@@ -147,8 +147,9 @@
 		{:else}
 			<p>Has entrado como {editor.email}.</p>
 			{#if editor.needsRebuild}
-				<button type="button" class="mini" onclick={() => editor.rebuild()}>Regenerar la web</button>
+				<p class="warn">La última regeneración de la web para buscadores ha fallado.</p>
 			{/if}
+			<button type="button" class="mini" disabled={editor.busy} onclick={() => editor.rebuild()}>Regenerar la web</button>
 			<button type="button" class="mini" onclick={() => editor.logout()}>Cerrar sesión</button>
 		{/if}
 	</section>
@@ -313,6 +314,13 @@
 	}
 	.gh .mini {
 		margin-left: 4px;
+	}
+	.gh .warn {
+		color: #5e4300;
+	}
+	.mini:disabled {
+		opacity: 0.45;
+		cursor: default;
 	}
 	.file {
 		display: flex;
