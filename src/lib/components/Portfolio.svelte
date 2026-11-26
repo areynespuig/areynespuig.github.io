@@ -17,6 +17,9 @@
 	import { safeHref } from '../content/urls';
 	import { frameTransform } from '../content/photo';
 	import { hasText, isBuiltin, LAYOUT_INFO, paragraphs, sectionOrder, sectionVisible } from '../content/sections';
+	import { isValidSlug, projectPath } from '../content/project-pages';
+	import ThemeToggle from './ThemeToggle.svelte';
+	import './site-theme.css';
 
 	let {
 		content,
@@ -95,27 +98,6 @@
 		return `${start}–${end}`;
 	}
 
-	let theme = $state<'light' | 'dark' | null>(null);
-	$effect(() => {
-		if (editing) return;
-		const set = document.documentElement.dataset.theme;
-		theme =
-			set === 'light' || set === 'dark'
-				? set
-				: matchMedia('(prefers-color-scheme: dark)').matches
-					? 'dark'
-					: 'light';
-	});
-	function toggleTheme() {
-		const next = theme === 'dark' ? 'light' : 'dark';
-		document.documentElement.dataset.theme = next;
-		try {
-			localStorage.setItem('theme', next);
-		} catch {
-			/* sin almacenamiento: el cambio dura hasta recargar */
-		}
-		theme = next;
-	}
 </script>
 
 {#snippet say(value: L10n)}
@@ -249,10 +231,19 @@
 										<h3>{item.title || (editing ? 'Proyecto sin nombre' : '')}</h3>
 										{#if item.year}<p class="year">{item.year}</p>{/if}
 										<p>{@render say(item.description)}</p>
-										{#if item.url}
-											<a href={link(item.url)} target="_blank" rel="noopener">
-												{ui.viewProject}<span class="visually-hidden"> {item.title} {ui.newTab}</span>
-											</a>
+										{#if (item.page && isValidSlug(item.page.slug)) || item.url}
+											<div class="card-links">
+												{#if item.page && isValidSlug(item.page.slug)}
+													<a class="card-page" href={projectPath(lang, item.page.slug)}>
+														{ui.howItWorks}<span class="visually-hidden">: {item.title}</span>
+													</a>
+												{/if}
+												{#if item.url}
+													<a href={link(item.url)} target="_blank" rel="noopener">
+														{ui.viewProject}<span class="visually-hidden"> {item.title} {ui.newTab}</span>
+													</a>
+												{/if}
+											</div>
 										{/if}
 									</div>
 								</article>
@@ -386,19 +377,7 @@
 					{/each}
 				</nav>
 				{#if !editing}
-					<button
-						type="button"
-						class="theme"
-						onclick={toggleTheme}
-						aria-label={theme === 'dark' ? ui.themeToLight : ui.themeToDark}
-						title={theme === 'dark' ? ui.themeToLight : ui.themeToDark}
-					>
-						{#if theme === 'dark'}
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
-						{:else}
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg>
-						{/if}
-					</button>
+					<ThemeToggle {lang} />
 				{/if}
 			</div>
 
@@ -534,31 +513,6 @@
 		/* Los textos ocultos (solo para lectores de pantalla) se posicionan dentro de la web, no de la ventana del editor. */
 		position: relative;
 		container: site / inline-size;
-		color-scheme: light dark;
-		--paper: light-dark(#f5f6f4, #101214);
-		--surface: light-dark(#ffffff, #181b1f);
-		--sunken: light-dark(#eceef1, #20242a);
-		--ink: light-dark(#111316, #eceef0);
-		--muted: light-dark(#565c65, #a2a9b2);
-		--line: light-dark(#d8dbd7, #2b2f35);
-		--accent: light-dark(#2346e8, #8da2ff);
-		--hero: light-dark(#2346e8, #1a2b8c);
-		--hero-ink: #f5f6f4;
-		--hero-soft: #d3d9f9;
-		--display: 'Bricolage Grotesque Variable', 'Arial Narrow', sans-serif;
-		--body: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
-		background: var(--paper);
-		color: var(--ink);
-		font-family: var(--body);
-		font-size: 1.0625rem;
-		line-height: 1.6;
-		-webkit-font-smoothing: antialiased;
-	}
-	:global([data-theme='light']) .site {
-		color-scheme: light;
-	}
-	:global([data-theme='dark']) .site {
-		color-scheme: dark;
 	}
 	.site :where(h1, h2, h3, p, ul, ol, figure) {
 		margin: 0;
@@ -648,22 +602,6 @@
 		text-decoration: underline;
 		text-underline-offset: 0.35em;
 	}
-	.theme {
-		width: 44px;
-		height: 44px;
-		flex: none;
-		border-radius: 50%;
-		border: 1.5px solid color-mix(in oklch, var(--hero-ink) 45%, transparent);
-		background: transparent;
-		color: var(--hero-ink);
-		display: grid;
-		place-items: center;
-		cursor: pointer;
-	}
-	.theme:hover {
-		border-color: var(--hero-ink);
-	}
-
 	.hero-main {
 		margin-top: clamp(2.5rem, 8cqi, 6rem);
 		display: grid;
@@ -979,12 +917,32 @@
 		font-size: 0.95rem;
 	}
 	.card a {
-		margin-top: auto;
 		align-self: flex-start;
 		padding-block: 0.4rem;
 		color: var(--accent);
 		font-weight: 700;
 		text-underline-offset: 0.25em;
+	}
+	/* Las secciones nuevas en tarjetas ponen el enlace suelto al final. */
+	.card-body > a {
+		margin-top: auto;
+	}
+	.card-links {
+		margin-top: auto;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 1.25rem;
+	}
+	/* La página del proyecto es el enlace principal: va como botón; el proyecto externo, como texto. */
+	.card a.card-page {
+		padding: 0.4rem 0.95rem;
+		border: 1.5px solid currentColor;
+		border-radius: 999px;
+		text-decoration: none;
+	}
+	.card a.card-page:hover {
+		background: color-mix(in oklch, var(--accent) 12%, transparent);
 	}
 
 	/* Secciones nuevas */

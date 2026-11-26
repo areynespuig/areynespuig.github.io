@@ -71,6 +71,27 @@ export interface Project {
 	imageAlt: L10n;
 	url: string;
 	year: number | null;
+	/** Página propia del proyecto (por ejemplo, para explicar cómo funciona). Sin ella, la tarjeta no enlaza a ninguna página. */
+	page?: ProjectPage;
+}
+
+/** Un bloque de la página de un proyecto: un paso de un tutorial o un apartado con título, texto e imagen. */
+export interface PageBlock {
+	id: string;
+	title: L10n;
+	body: L10n;
+	image: string;
+	imageAlt: L10n;
+}
+
+export interface ProjectPage {
+	/** Parte final de la dirección: /proyectos/<slug>/, /ca/projectes/<slug>/ y /en/projects/<slug>/. */
+	slug: string;
+	/** Texto de entrada bajo el título. Si está vacío, se usa la descripción de la tarjeta. */
+	intro: L10n;
+	/** Numera los bloques como pasos de un tutorial. */
+	steps: boolean;
+	blocks: PageBlock[];
 }
 
 /** Secciones que vienen de serie con la web; su título es fijo y siempre se muestran. */

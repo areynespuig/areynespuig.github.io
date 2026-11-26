@@ -25,6 +25,16 @@
 		if (!long) return 2;
 		return Math.min(8, Math.max(3, Math.ceil(text.length / 48)));
 	}
+	/** Mientras se escribe: minúsculas, sin acentos y con guiones (el guion final se limpia al publicar). */
+	function typingSlug(value: string): string {
+		return value
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+/, '')
+			.slice(0, 60);
+	}
 	function fileName(path: string): string {
 		return path ? (editor.pending[path]?.name ?? path.split('/').pop() ?? path) : '';
 	}
@@ -103,6 +113,34 @@
 		/>
 		{field.label}
 	</label>
+{:else if field.type === 'slug'}
+	{@const value = (info.obj[field.key] as string) ?? ''}
+	{@const taken = !!info.pageOf && !!value && editor.slugTaken(info.pageOf, value)}
+	<div class="single">
+		<label for={base}>{field.label}</label>
+		<div class="slug">
+			<span class="slug-prefix" aria-hidden="true">/proyectos/</span>
+			<input
+				id={base}
+				type="text"
+				{value}
+				spellcheck="false"
+				autocomplete="off"
+				aria-invalid={!value || taken}
+				aria-describedby={`${base}-hint`}
+				oninput={(e) => editor.setValue(info, field.key, typingSlug(e.currentTarget.value))}
+			/>
+		</div>
+		{#if !value}
+			<p class="error">Escribe una dirección: solo letras sin acentos, números y guiones.</p>
+		{:else if taken}
+			<p class="error">Otra página de proyecto ya usa esta dirección. Elige otra.</p>
+		{/if}
+		<p class="hint" id={`${base}-hint`}>
+			En catalán es /ca/projectes/{value || '…'}/ y en inglés /en/projects/{value || '…'}/. Si la cambias después de publicar, los
+			enlaces antiguos dejarán de funcionar.
+		</p>
+	</div>
 {:else if field.type === 'choice'}
 	<fieldset class="group">
 		<legend class="group-label">{field.label}</legend>
@@ -219,6 +257,40 @@
 	.chip.empty {
 		color: var(--muted);
 		padding-right: 0;
+	}
+	.slug {
+		display: flex;
+		align-items: stretch;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: #fff;
+		overflow: hidden;
+	}
+	.slug:focus-within {
+		outline: 2px solid var(--ink);
+		border-color: var(--ink);
+	}
+	.slug-prefix {
+		display: flex;
+		align-items: center;
+		padding: 0 4px 0 11px;
+		font-size: 14px;
+		color: var(--muted);
+		background: #f1f2f5;
+	}
+	.slug input {
+		border: 0 !important;
+		border-radius: 0 !important;
+		outline: none !important;
+	}
+	.error {
+		margin: 0;
+		font-size: 13px;
+		font-weight: 600;
+		color: #8a1f14;
+	}
+	.single .hint {
+		margin: 0;
 	}
 	.choices {
 		display: flex;

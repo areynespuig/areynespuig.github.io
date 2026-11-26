@@ -1,0 +1,28 @@
+/* Colores y tipografía de la web. Los comparten la portada y las páginas de los proyectos. */
+.site {
+	color-scheme: light dark;
+	--paper: light-dark(#f5f6f4, #101214);
+	--surface: light-dark(#ffffff, #181b1f);
+	--sunken: light-dark(#eceef1, #20242a);
+	--ink: light-dark(#111316, #eceef0);
+	--muted: light-dark(#565c65, #a2a9b2);
+	--line: light-dark(#d8dbd7, #2b2f35);
+	--accent: light-dark(#2346e8, #8da2ff);
+	--hero: light-dark(#2346e8, #1a2b8c);
+	--hero-ink: #f5f6f4;
+	--hero-soft: #d3d9f9;
+	--display: 'Bricolage Grotesque Variable', 'Arial Narrow', sans-serif;
+	--body: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
+	background: var(--paper);
+	color: var(--ink);
+	font-family: var(--body);
+	font-size: 1.0625rem;
+	line-height: 1.6;
+	-webkit-font-smoothing: antialiased;
+}
+[data-theme='light'] .site {
+	color-scheme: light;
+}
+[data-theme='dark'] .site {
+	color-scheme: dark;
+}

@@ -2,6 +2,7 @@
 	import type { Lang } from '../content/types';
 	import { formatDate, type Editor } from './editor.svelte';
 	import { resolveTarget, sectionList } from './schema';
+	import { supabaseConfigured } from '../config';
 
 	let { editor }: { editor: Editor } = $props();
 
@@ -39,14 +40,18 @@
 	}
 	/** Lleva la vista previa a la sección y la selecciona para poder moverla. */
 	function goTo(id: string) {
-		scrollTo(document.getElementById(id));
+		if (editor.viewProject) editor.view = { kind: 'home' };
+		requestAnimationFrame(() => scrollTo(document.getElementById(id)));
 		if (id !== 'inicio') editor.select(`section:${id}`);
 	}
 	/** Lleva la vista previa a los botones para crear una sección. */
 	function goToNewSection() {
-		const box = document.getElementById('nueva-seccion');
-		scrollTo(box);
-		box?.querySelector('button')?.focus({ preventScroll: true });
+		if (editor.viewProject) editor.view = { kind: 'home' };
+		requestAnimationFrame(() => {
+			const box = document.getElementById('nueva-seccion');
+			scrollTo(box);
+			box?.querySelector('button')?.focus({ preventScroll: true });
+		});
 	}
 	async function upload(key: 'photo' | 'cv', input: HTMLInputElement) {
 		const file = input.files?.[0];
@@ -60,6 +65,12 @@
 </script>
 
 <aside class="side">
+	{#if editor.viewProject}
+		<div class="viewing" role="status">
+			<p>Estás editando la página de <strong>«{editor.viewProject.title || 'Proyecto sin nombre'}»</strong>.</p>
+			<button type="button" class="mini" onclick={() => editor.openHome()}>Volver a la portada</button>
+		</div>
+	{/if}
 	<nav aria-labelledby="secs-h">
 		<h2 id="secs-h">Secciones de la página</h2>
 		<ul class="secs">
@@ -143,7 +154,11 @@
 	<section aria-labelledby="ses-h" class="gh">
 		<h2 id="ses-h">Sesión</h2>
 		{#if editor.offline}
-			<p>Modo local: Supabase no está configurado, así que puedes editar pero no publicar.</p>
+			<p>
+				{supabaseConfigured
+					? 'Modo de prueba local: puedes editar, pero los cambios no se publican.'
+					: 'Modo local: Supabase no está configurado, así que puedes editar pero no publicar.'}
+			</p>
 		{:else}
 			<p>Has entrado como {editor.email}.</p>
 			{#if editor.needsRebuild}
@@ -204,6 +219,20 @@
 	}
 	.sec:hover {
 		background: #eceef2;
+	}
+	.viewing {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+		padding: 12px;
+		border-radius: 8px;
+		background: #fff1c7;
+		color: #5e4300;
+		font-size: 13px;
+	}
+	.viewing p {
+		margin: 0;
 	}
 	.sec-name {
 		min-width: 0;

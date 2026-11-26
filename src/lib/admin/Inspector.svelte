@@ -12,12 +12,23 @@
 	/** La sección nueva seleccionada, si lo es. */
 	const custom = $derived(info?.isSection && !info.builtin ? (info.obj as CustomSection) : null);
 	const hasTexts = $derived(info?.fields.some((f) => f.type === 'l10n' || f.type === 'l10nList') ?? false);
+	/** Proyecto seleccionado (su tarjeta): puede tener página propia. */
+	const project = $derived(
+		info?.target.startsWith('projects:') ? editor.draft.projects.find((p) => p.id === info.id) : undefined
+	);
+	const pageProject = $derived(info?.pageOf ? editor.draft.projects.find((p) => p.id === info.pageOf) : undefined);
 </script>
 
 <aside class="insp" aria-labelledby="insp-title">
 	{#if info}
 		<div class="head">
-			<p class="sec">{info.isSection ? 'Sección de la página' : `Sección: ${sectionName}`}</p>
+			<p class="sec">
+				{info.isSection
+					? 'Sección de la página'
+					: pageProject
+						? `Página de «${pageProject.title || 'Proyecto sin nombre'}»`
+						: `Sección: ${sectionName}`}
+			</p>
 			<h2 id="insp-title">{info.title}</h2>
 			{#if info.isSection}
 				<div class="actions">
@@ -26,6 +37,11 @@
 					{#if !info.builtin}
 						<button type="button" class="danger" onclick={() => editor.remove(info)}>Quitar sección</button>
 					{/if}
+				</div>
+			{:else if info.pageOf && !info.list}
+				<div class="actions">
+					<button type="button" onclick={() => editor.openHome()}>Volver a la portada</button>
+					<button type="button" class="danger" onclick={() => editor.removeProjectPage(info.pageOf!)}>Quitar página</button>
 				</div>
 			{:else if info.list}
 				<div class="actions">
@@ -58,6 +74,24 @@
 		{#each info.fields as field (`${info.target}-${field.key}`)}
 			<FieldEditor {editor} {info} {field} />
 		{/each}
+
+		{#if project}
+			<section class="page-box" aria-labelledby="page-box-h">
+				<h3 id="page-box-h">Página del proyecto</h3>
+				{#if project.page}
+					<p>Se abre con el botón «Cómo funciona» de la tarjeta, en /proyectos/{project.page.slug}/.</p>
+					<div class="row">
+						{#if editor.viewProject?.id !== project.id}
+							<button type="button" class="add" onclick={() => editor.openProjectPage(project.id)}>Abrir la página</button>
+						{/if}
+						<button type="button" class="add danger-text" onclick={() => editor.removeProjectPage(project.id)}>Quitar página</button>
+					</div>
+				{:else}
+					<p>Una página propia para contar el proyecto con más detalle: cómo funciona, cómo se usa o cómo se hizo.</p>
+					<button type="button" class="add" onclick={() => editor.createProjectPage(project.id)}>Crear página del proyecto</button>
+				{/if}
+			</section>
+		{/if}
 
 		{#if custom && custom.layout !== 'text'}
 			<button type="button" class="add" onclick={() => editor.addItem(custom.id)}>
@@ -141,6 +175,34 @@
 	}
 	.add {
 		align-self: flex-start;
+	}
+	.page-box {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+		padding: 14px;
+		border-radius: 10px;
+		background: #fff;
+		box-shadow: inset 0 0 0 1px var(--line);
+	}
+	.page-box h3 {
+		margin: 0;
+		font-size: 15px;
+	}
+	.page-box p {
+		margin: 0;
+		font-size: 13px;
+		color: var(--muted);
+		overflow-wrap: anywhere;
+	}
+	.page-box .row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.danger-text {
+		color: #8a1f14;
 	}
 	.note {
 		margin: 0;
