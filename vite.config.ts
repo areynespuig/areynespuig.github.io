@@ -7,6 +7,11 @@ import { SUPABASE } from './src/lib/config.ts';
 const supabase = SUPABASE.url ? [SUPABASE.url as `https://${string}.${string}`] : [];
 
 export default defineConfig({
+	build: {
+		// Vite mete los archivos pequeños dentro del CSS como `data:`, y la CSP solo deja cargar fuentes
+		// de la propia web (`font-src 'self'`): las fuentes siempre van como archivo aparte.
+		assetsInlineLimit: (file) => (/\.(woff2?|ttf|otf)$/i.test(file) ? false : undefined)
+	},
 	plugins: [
 		sveltekit({
 			compilerOptions: {
