@@ -38,6 +38,8 @@ export type FieldDef =
 	/** Zoom y posición de una imagen dentro de su recuadro; `image` es el campo con la imagen. */
 	| { key: string; label: string; type: 'imageFrame'; image: string }
 	| { key: string; label: string; type: 'choice'; options: { value: string; label: string; hint: string }[] }
+	/** Tema principal y temas que pueden elegir los visitantes (todo el objeto `appearance`). */
+	| { key: string; label: string; type: 'looks' }
 	/** Dirección de la página de un proyecto (solo minúsculas, números y guiones). */
 	| { key: string; label: string; type: 'slug' };
 
@@ -264,6 +266,10 @@ function resolvePageTarget(c: SiteContent, target: string): TargetInfo | null {
 /** Traduce un identificador de bloque («hero.subtitle», «projects:salutsegura»…) a lo que se puede editar. */
 export function resolveTarget(c: SiteContent, target: string): TargetInfo | null {
 	switch (target) {
+		case 'appearance':
+			// Lo crea el editor al abrirlo (openAppearance): sin él, no hay nada que editar.
+			if (!c.appearance) return null;
+			return { target, title: 'Apariencia', section: '', obj: c.appearance, fields: [{ key: 'theme', label: 'Tema', type: 'looks' }] };
 		case 'photo':
 			return {
 				target,

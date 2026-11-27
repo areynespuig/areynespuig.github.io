@@ -1,7 +1,7 @@
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { SUPABASE } from './src/lib/config';
+import { SUPABASE } from './src/lib/config.ts';
 
 /** Dominio de Supabase (datos, sesión, archivos y función de publicar), si está configurado. */
 const supabase = SUPABASE.url ? [SUPABASE.url as `https://${string}.${string}`] : [];

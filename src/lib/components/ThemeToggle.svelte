@@ -32,7 +32,8 @@
 	function toggle() {
 		const next = theme === 'dark' ? 'light' : 'dark';
 		const root = document.documentElement;
-		if (!document.startViewTransition || !button || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches || root.dataset.look === 'contraste';
+		if (!document.startViewTransition || !button || still) {
 			apply(next);
 			return;
 		}

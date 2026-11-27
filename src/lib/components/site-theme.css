@@ -17,6 +17,28 @@
 	--font: 'Albert Sans Variable', 'Albert Sans', system-ui, sans-serif;
 	--display: var(--font);
 	--body: var(--font);
+	/* Lo que cambia de un tema a otro (themes.css); estos son los valores del tema Pino. */
+	--font-display: var(--font);
+	--font-ui: var(--font);
+	--display-stretch: 100%;
+	--name-size: clamp(3.25rem, 11.5cqi, 9rem);
+	--name-weight: 640;
+	--name-tracking: -0.048em;
+	--name-leading: 0.92;
+	--name-case: none;
+	--h2-size: clamp(2rem, 4cqi, 3rem);
+	--h2-weight: 620;
+	--h2-tracking: -0.035em;
+	--h2-case: none;
+	/* Ancho medio de una letra de los títulos (en em): ajusta los títulos largos a su columna. */
+	--glyph-w: 0.58;
+	--radius-card: 20px;
+	--radius-btn: 999px;
+	--radius-photo: 22px;
+	--radius-pill: 999px;
+	--bw: 1px;
+	--shadow: none;
+	--photo-filter: none;
 	/* Curvas: las entradas frenan al final; lo que responde al usuario, igual pero más corto. */
 	--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 	--ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);

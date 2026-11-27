@@ -23,7 +23,9 @@
 	{#if info}
 		<div class="head">
 			<p class="sec">
-				{info.isSection
+				{info.target === 'appearance'
+					? 'Toda la web'
+					: info.isSection
 					? 'Sección de la página'
 					: pageProject
 						? `Página de «${pageProject.title || 'Proyecto sin nombre'}»`

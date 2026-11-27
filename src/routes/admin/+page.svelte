@@ -13,6 +13,7 @@
 	import { LANGS } from '#lib/content/types.ts';
 	import { LANG_NAMES, LANG_PATHS } from '#lib/i18n.ts';
 	import { SITE } from '#lib/config.ts';
+	import { THEMES, normalizeAppearance } from '#lib/content/themes.ts';
 
 	/**
 	 * Dentro de un iframe de otra web, alguien podría tapar el editor y hacer que se pulse algo sin
@@ -47,6 +48,10 @@
 	});
 
 	const host = SITE.url.replace(/^https?:\/\//, '');
+	// Hay temas con un solo modo (Terminal y Medianoche solo oscuros; Suizo, Bruto, Riso y Bauhaus solo claros).
+	const modes = $derived(THEMES[normalizeAppearance(editor.draft.appearance).theme].schemes);
+	const mode = $derived(modes.includes(editor.scheme) ? editor.scheme : modes[0]);
+	const modeHint = $derived(modes.length > 1 ? undefined : `Este tema solo tiene modo ${modes[0] === 'dark' ? 'oscuro' : 'claro'}`);
 	let stageWidth = $state(0);
 	const deviceWidth = $derived(editor.device === 'mobile' ? 390 : 1280);
 	const zoom = $derived(stageWidth ? Math.min(1, (stageWidth - 48) / deviceWidth) : 1);
@@ -106,10 +111,10 @@
 				</div>
 			</div>
 			<div class="ctrl">
-				<span id="sch-l">Tema</span>
-				<div class="seg" role="group" aria-labelledby="sch-l">
-					<button type="button" aria-pressed={editor.scheme === 'light'} onclick={() => (editor.scheme = 'light')}>Claro</button>
-					<button type="button" aria-pressed={editor.scheme === 'dark'} onclick={() => (editor.scheme = 'dark')}>Oscuro</button>
+				<span id="sch-l">Modo</span>
+				<div class="seg" role="group" aria-labelledby="sch-l" title={modeHint}>
+					<button type="button" aria-pressed={mode === 'light'} disabled={!modes.includes('light')} onclick={() => (editor.scheme = 'light')}>Claro</button>
+					<button type="button" aria-pressed={mode === 'dark'} disabled={!modes.includes('dark')} onclick={() => (editor.scheme = 'dark')}>Oscuro</button>
 				</div>
 			</div>
 		</div>
@@ -138,9 +143,9 @@
 				</div>
 				<div class="viewport" style:width="{deviceWidth}px" style:zoom>
 					{#if editor.viewProject}
-						<ProjectPage content={editor.draft} project={editor.viewProject} lang={editor.lang} scheme={editor.scheme} />
+						<ProjectPage content={editor.draft} project={editor.viewProject} lang={editor.lang} scheme={mode} />
 					{:else}
-						<Portfolio content={editor.draft} lang={editor.lang} scheme={editor.scheme} />
+						<Portfolio content={editor.draft} lang={editor.lang} scheme={mode} />
 					{/if}
 				</div>
 			</div>
@@ -268,6 +273,12 @@
 	.seg button[aria-pressed='true'] {
 		background: var(--ink);
 		color: #fff;
+	}
+	.seg button:disabled {
+		cursor: default;
+	}
+	.seg button:disabled:not([aria-pressed='true']) {
+		opacity: 0.45;
 	}
 	.pub {
 		flex: 1 1 260px;

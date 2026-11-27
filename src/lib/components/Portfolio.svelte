@@ -19,6 +19,10 @@
 	import { isValidSlug, projectPath } from '../content/project-pages';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import './site-theme.css';
+	import './themes.css';
+	import LookPicker from './LookPicker.svelte';
+	import { syncLook } from '../content/look.svelte';
+	import { normalizeAppearance } from '../content/themes';
 
 	let {
 		content,
@@ -34,6 +38,12 @@
 	const editor = useEditor();
 	const editing = !!editor;
 	const ui = $derived(UI[lang]);
+	const appearance = $derived(normalizeAppearance(content.appearance));
+	// En la web, el tema va en <html> (lo pone /theme.js antes de pintar); aquí se repite al abrir y
+	// cuando llega el contenido más reciente. En el editor, la vista previa lo lleva en el propio `.site`.
+	$effect(() => {
+		if (!editing) syncLook(content.appearance);
+	});
 
 	/** En la barra: nombre y primer apellido. */
 	const brandName = $derived(content.profile.name.trim().split(/\s+/).slice(0, 2).join(' '));
@@ -412,7 +422,7 @@
 	</section>
 {/snippet}
 
-<div class={['site', editing && 'editing']} style:color-scheme={scheme} lang={lang}>
+<div class={['site', editing && 'editing']} style:color-scheme={scheme} lang={lang} data-look={editing ? appearance.theme : undefined}>
 	{#if !editing}
 		<a class="skip" href="#contenido">{ui.skip}</a>
 	{/if}
@@ -452,6 +462,7 @@
 					{/each}
 				</ul>
 				{#if !editing}
+					<LookPicker {content} {lang} />
 					<ThemeToggle {lang} />
 				{/if}
 			</div>
@@ -652,6 +663,8 @@
 	.brand {
 		margin-right: auto;
 		color: var(--ink);
+		font-family: var(--font-display);
+		font-stretch: var(--display-stretch);
 		font-weight: 650;
 		font-size: 1rem;
 		letter-spacing: -0.01em;
@@ -672,8 +685,9 @@
 		position: relative;
 		z-index: 1;
 		padding: 0.4rem 0.85rem;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		color: var(--muted);
+		font-family: var(--font-ui);
 		font-size: 0.9375rem;
 		font-weight: 500;
 		text-decoration: none;
@@ -689,7 +703,7 @@
 		position: absolute;
 		left: 0;
 		top: 0;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--accent-soft);
 		opacity: 0;
 		pointer-events: none;
@@ -716,15 +730,16 @@
 		display: flex;
 		gap: 2px;
 		border: 1px solid var(--line);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--surface);
 	}
 	.langs a,
 	.langs .lang {
 		display: block;
 		padding: 0.25rem 0.6rem;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		color: var(--muted);
+		font-family: var(--font-ui);
 		font-size: 0.78rem;
 		font-weight: 650;
 		letter-spacing: 0.03em;
@@ -775,9 +790,10 @@
 		gap: 0.6rem;
 		padding: 0.35rem 0.9rem 0.35rem 0.75rem;
 		border: 1px solid var(--line);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--surface);
 		color: var(--muted);
+		font-family: var(--font-ui);
 		font-size: 0.875rem;
 		font-weight: 500;
 		line-height: 1.5;
@@ -809,10 +825,13 @@
 	.name {
 		margin-top: 0.3rem;
 		color: var(--ink);
-		font-weight: 640;
-		font-size: clamp(3.25rem, 11.5cqi, 9rem);
-		line-height: 0.92;
-		letter-spacing: -0.048em;
+		font-family: var(--font-display);
+		font-stretch: var(--display-stretch);
+		font-weight: var(--name-weight);
+		font-size: var(--name-size);
+		line-height: var(--name-leading);
+		letter-spacing: var(--name-tracking);
+		text-transform: var(--name-case);
 		text-wrap: balance;
 	}
 	.name-line {
@@ -839,10 +858,12 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.55rem;
-		border: 1px solid var(--line);
-		border-radius: 999px;
+		border: var(--bw) solid var(--line);
+		border-radius: var(--radius-btn);
 		background: var(--surface);
 		color: var(--ink);
+		box-shadow: var(--shadow);
+		font-family: var(--font-ui);
 		font-weight: 600;
 		font-size: 0.975rem;
 		text-decoration: none;
@@ -873,7 +894,7 @@
 		--photo-w: clamp(8.5rem, 20cqi, 17rem);
 		width: var(--photo-w);
 		max-height: calc(var(--photo-w) * 1.75);
-		border-radius: 22px;
+		border-radius: var(--radius-photo);
 		overflow: hidden;
 		background: var(--sunken);
 	}
@@ -881,6 +902,7 @@
 		display: block;
 		width: 100%;
 		height: auto;
+		filter: var(--photo-filter);
 	}
 
 	/* Secciones */
@@ -896,10 +918,13 @@
 	}
 	.block h2 {
 		color: var(--ink);
-		font-weight: 620;
-		font-size: clamp(2rem, 4cqi, 3rem);
+		font-family: var(--font-display);
+		font-stretch: var(--display-stretch);
+		font-weight: var(--h2-weight);
+		font-size: var(--h2-size);
 		line-height: 1.04;
-		letter-spacing: -0.035em;
+		letter-spacing: var(--h2-tracking);
+		text-transform: var(--h2-case);
 		text-wrap: balance;
 		hyphens: auto;
 		overflow-wrap: break-word;
@@ -918,7 +943,7 @@
 		}
 		/* En la columna, una palabra larga reduce el título lo justo para caber (≈0,58 em por letra). */
 		.block-head h2 {
-			font-size: min(clamp(2rem, 4cqi, 3rem), calc(17rem / (var(--chars, 1) * 0.58)));
+			font-size: min(var(--h2-size), calc(17rem / (var(--chars, 1) * var(--glyph-w))));
 		}
 	}
 	.bio {
@@ -1055,9 +1080,10 @@
 		height: 100%;
 		display: flex;
 		flex-direction: column;
-		border: 1px solid var(--line);
-		border-radius: 20px;
+		border: var(--bw) solid var(--line);
+		border-radius: var(--radius-card);
 		background: var(--surface);
+		box-shadow: var(--shadow);
 		overflow: hidden;
 		transition: border-color 0.3s;
 	}
@@ -1069,7 +1095,7 @@
 		aspect-ratio: 16 / 9;
 		overflow: hidden;
 		background: #fff;
-		border-bottom: 1px solid var(--line);
+		border-bottom: var(--bw) solid var(--line);
 	}
 	.card figure img {
 		display: block;
@@ -1110,6 +1136,8 @@
 		padding: 1.25rem 1.35rem 1.35rem;
 	}
 	.card h3 {
+		font-family: var(--font-display);
+		font-stretch: var(--display-stretch);
 		font-size: 1.35rem;
 		font-weight: 640;
 		line-height: 1.2;
@@ -1155,7 +1183,7 @@
 	/* La página del proyecto es el enlace principal: va como botón; el proyecto externo, como texto. */
 	.card a.card-page {
 		padding: 0.45rem 1rem;
-		border-radius: 999px;
+		border-radius: var(--radius-btn);
 		background: var(--accent);
 		color: var(--accent-ink);
 		text-decoration: none;
@@ -1317,7 +1345,7 @@
 			animation-delay: 0.11s;
 		}
 		.site:not(.editing) .photo {
-			animation: reveal 1.1s var(--ease-out) 0.2s both;
+			animation: reveal 1.1s var(--ease-out) 0.2s backwards;
 		}
 		.site:not(.editing) .photo-inner {
 			animation: settle 1.6s var(--ease-out) 0.2s both;
@@ -1364,10 +1392,10 @@
 	}
 	@keyframes reveal {
 		from {
-			clip-path: inset(100% 0 0 0 round 22px);
+			clip-path: inset(100% 0 0 0 round var(--radius-photo));
 		}
 		to {
-			clip-path: inset(0 0 0 0 round 22px);
+			clip-path: inset(0 0 0 0 round var(--radius-photo));
 		}
 	}
 	@keyframes settle {

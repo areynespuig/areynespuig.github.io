@@ -35,6 +35,7 @@ export const UI = {
 		newTab: '(se abre en una pestaña nueva)',
 		themeToDark: 'Cambiar a tema oscuro',
 		themeToLight: 'Cambiar a tema claro',
+		themeLabel: 'Tema de la web',
 		made: 'Hecho con SvelteKit.',
 		missing: 'Falta en castellano'
 	},
@@ -59,6 +60,7 @@ export const UI = {
 		newTab: "(s'obre en una pestanya nova)",
 		themeToDark: 'Canviar a tema fosc',
 		themeToLight: 'Canviar a tema clar',
+		themeLabel: 'Tema del web',
 		made: 'Fet amb SvelteKit.',
 		missing: 'Falta en català'
 	},
@@ -83,6 +85,7 @@ export const UI = {
 		newTab: '(opens in a new tab)',
 		themeToDark: 'Switch to dark theme',
 		themeToLight: 'Switch to light theme',
+		themeLabel: 'Site theme',
 		made: 'Built with SvelteKit.',
 		missing: 'Missing in English'
 	}

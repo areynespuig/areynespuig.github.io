@@ -3,6 +3,7 @@
 	import { formatDate, type Editor } from './editor.svelte';
 	import { resolveTarget, sectionList } from './schema';
 	import { supabaseConfigured } from '../config';
+	import { THEMES, normalizeAppearance } from '../content/themes';
 
 	let { editor }: { editor: Editor } = $props();
 
@@ -34,6 +35,7 @@
 		return editor.issues.filter((i) => i.section === section).length;
 	}
 	const sections = $derived(sectionList(editor.draft));
+	const appearance = $derived(normalizeAppearance(editor.draft.appearance));
 
 	function scrollTo(el: Element | null) {
 		el?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
@@ -106,6 +108,23 @@
 		{:else}
 			<p class="quiet">Nada pendiente: los tres idiomas están completos y al día.</p>
 		{/if}
+	</section>
+
+	<section aria-labelledby="look-h">
+		<h2 id="look-h">Apariencia</h2>
+		<button type="button" class={['look', editor.selected === 'appearance' && 'is-cur']} onclick={() => editor.openAppearance()}>
+			<span class="sw" aria-hidden="true">
+				{#each THEMES[appearance.theme].swatches as color, i (i)}<i style:background={color}></i>{/each}
+			</span>
+			<span class="look-txt">
+				<strong>{THEMES[appearance.theme].name.es}</strong>
+				<span>
+					{appearance.choices.length > 1
+						? `Los visitantes pueden elegir entre ${appearance.choices.length} temas`
+						: 'Tema único: sin selector en la web'}
+				</span>
+			</span>
+		</button>
 	</section>
 
 	<section aria-labelledby="files-h">
@@ -233,6 +252,51 @@
 	}
 	.viewing p {
 		margin: 0;
+	}
+	.look {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px 10px;
+		border: 0;
+		border-radius: 6px;
+		background: #fff;
+		box-shadow: inset 0 0 0 1px var(--line);
+		color: var(--ink);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+	.look:hover,
+	.look.is-cur {
+		box-shadow: inset 0 0 0 1px var(--ink);
+	}
+	.look .sw {
+		display: inline-flex;
+		flex: none;
+	}
+	.look .sw i {
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		box-shadow: 0 0 0 1px rgb(0 0 0 / 0.2);
+	}
+	.look .sw i + i {
+		margin-left: -5px;
+	}
+	.look-txt {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		line-height: 1.3;
+	}
+	.look-txt strong {
+		font-weight: 600;
+	}
+	.look-txt span {
+		font-size: 12px;
+		color: var(--muted);
 	}
 	.sec-name {
 		min-width: 0;

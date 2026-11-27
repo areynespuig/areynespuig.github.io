@@ -4,6 +4,7 @@ import { LANGS, type CollectionKey, type L10n, type Lang, type SectionLayout, ty
 import { newSection, newSectionItem, sectionOrder } from '../content/sections';
 import { newPageBlock, newProjectPage, slugify, uniqueSlug } from '../content/project-pages';
 import { SUPABASE } from '../config';
+import { normalizeAppearance } from '../content/themes';
 import { fetchLatestContent } from '../content/remote';
 import { allTargets, resolveTarget, reviewKey, type TargetInfo } from './schema';
 import { getSupabase } from './supabase';
@@ -79,8 +80,12 @@ function flatten(content: SiteContent): Map<string, string> {
 			out.set(path, JSON.stringify(value ?? null));
 		}
 	};
-	const { meta: _meta, order: _order, ...rest } = content;
+	const { meta: _meta, order: _order, appearance, ...rest } = content;
 	walk(rest, '');
+	// La apariencia se compara ya reparada: no tenerla es lo mismo que tener la de por defecto.
+	const look = normalizeAppearance(appearance);
+	out.set('appearance.theme', look.theme);
+	out.set('appearance.choices', look.choices.join(','));
 	out.set('sections#display', sectionOrder(content).join(','));
 	return out;
 }
@@ -119,6 +124,7 @@ function clean(content: SiteContent): SiteContent {
 		for (const l of LANGS) section.points[l] = trimList(section.points[l] ?? []);
 	}
 	if (content.sections) content.order = sectionOrder(content);
+	if (content.appearance) content.appearance = normalizeAppearance(content.appearance);
 	// Direcciones de las páginas de proyecto: válidas y sin repetir.
 	const slugs = new Set<string>();
 	for (const project of content.projects) {
@@ -572,6 +578,12 @@ export class Editor {
 	/** Otra página de proyecto ya usa esta dirección. */
 	slugTaken(projectId: string, slug: string): boolean {
 		return this.draft.projects.some((p) => p.id !== projectId && p.page?.slug === slug);
+	}
+
+	/** Abre en el panel la apariencia de la web (tema principal y temas para los visitantes). */
+	openAppearance() {
+		this.draft.appearance ??= normalizeAppearance(undefined);
+		this.selected = 'appearance';
 	}
 
 	/** Ids entre los que se mueve el bloque: las entradas de su lista, o todas las secciones si es una sección. */
