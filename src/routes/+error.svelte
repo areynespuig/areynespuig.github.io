@@ -1,6 +1,5 @@
 <script lang="ts">
-	import '@fontsource-variable/bricolage-grotesque/standard.css';
-	import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
+	import '@fontsource-variable/albert-sans/index.css';
 	import '#lib/components/site-theme.css';
 	import { page } from '$app/state';
 	import { LANG_PATHS, UI, langFromPath } from '#lib/i18n.ts';
@@ -40,9 +39,8 @@
 	}
 	.code {
 		margin: 0;
-		font-family: var(--display);
-		font-weight: 800;
-		font-stretch: 75%;
+		font-weight: 300;
+		letter-spacing: -0.05em;
 		font-size: clamp(4rem, 18vw, 8rem);
 		line-height: 0.9;
 		color: var(--accent);
@@ -60,9 +58,9 @@
 		display: inline-block;
 		margin-top: 1.5rem;
 		padding: 0.75rem 1.25rem;
-		border-radius: 10px;
-		background: var(--hero);
-		color: var(--hero-ink);
+		border-radius: 999px;
+		background: var(--accent);
+		color: var(--accent-ink);
 		font-weight: 700;
 		text-decoration: none;
 	}
