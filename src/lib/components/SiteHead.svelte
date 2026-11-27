@@ -5,6 +5,7 @@
 	import { absoluteUrl, safeHref } from '../content/urls';
 	import { hasText } from '../content/sections';
 	import { projectPath } from '../content/project-pages';
+	import { normalizeAppearance } from '../content/themes';
 
 	let {
 		lang,
@@ -56,6 +57,8 @@
 	<meta property="og:url" content={SITE.url + path(lang)} />
 	<meta property="og:image" content={image} />
 	<meta property="og:locale" content={LOCALES[lang]} />
+	<!-- Tema principal y temas que puede elegir el visitante: los lee /theme.js antes de pintar. -->
+	<meta name="site-look" content={normalizeAppearance(content.appearance).theme} data-choices={normalizeAppearance(content.appearance).choices.join(' ')} />
 	<meta name="theme-color" content="#2346e8" />
 	{#if !project}
 		{@html `<script type="application/ld+json">${person}</script>`}

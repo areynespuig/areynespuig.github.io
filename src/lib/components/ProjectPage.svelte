@@ -1,6 +1,10 @@
 <script lang="ts">
 	import '@fontsource-variable/albert-sans/index.css';
 	import './site-theme.css';
+	import './themes.css';
+	import LookPicker from './LookPicker.svelte';
+	import { syncLook } from '../content/look.svelte';
+	import { normalizeAppearance } from '../content/themes';
 	import { LANGS, type L10n, type Lang, type Project, type ProjectPage, type SiteContent } from '../content/types';
 	import { LANG_NAMES, LANG_PATHS, UI, pick } from '../i18n';
 	import { hasText, paragraphs } from '../content/sections';
@@ -26,6 +30,12 @@
 	const editor = useEditor();
 	const editing = !!editor;
 	const ui = $derived(UI[lang]);
+	const appearance = $derived(normalizeAppearance(content.appearance));
+	// En la web, el tema va en <html> (lo pone /theme.js antes de pintar); aquí se repite al abrir y
+	// cuando llega el contenido más reciente. En el editor, la vista previa lo lleva en el propio `.site`.
+	$effect(() => {
+		if (!editing) syncLook(content.appearance);
+	});
 	const page = $derived(project.page);
 	/** Sin introducción propia, la página usa la descripción de la tarjeta. */
 	const intro = $derived(hasText(page.intro) ? page.intro : project.description);
@@ -48,7 +58,7 @@
 	{#if missing(value)}<span class="missing">{ui.missing}</span>{:else}{text(value)}{/if}
 {/snippet}
 
-<div class={['site', editing && 'editing']} style:color-scheme={scheme} {lang}>
+<div class={['site', editing && 'editing']} style:color-scheme={scheme} {lang} data-look={editing ? appearance.theme : undefined}>
 	{#if !editing}
 		<a class="skip" href="#contenido">{ui.skip}</a>
 	{/if}
@@ -60,7 +70,10 @@
 					<span class="brand">Albert Reynés</span>
 				{:else}
 					<a class="brand" href={LANG_PATHS[lang]}>Albert Reynés</a>
-					<ThemeToggle {lang} />
+					<span class="tools">
+						<LookPicker {content} {lang} />
+						<ThemeToggle {lang} />
+					</span>
 				{/if}
 			</div>
 
@@ -86,7 +99,7 @@
 				<Editable target={`projects:${project.id}`} label="Nombre, año y enlace del proyecto" as="div" block>
 					<div class="actions">
 						{#if project.url}
-							<a class="btn" href={link(project.url)} target="_blank" rel="noopener">
+							<a class="btn primary" href={link(project.url)} target="_blank" rel="noopener">
 								{ui.viewProject}<span class="visually-hidden"> {ui.newTab}</span>
 							</a>
 						{/if}
@@ -233,6 +246,11 @@
 		padding-block: 0 clamp(3rem, 7cqi, 5.5rem);
 		border-bottom: 1px solid var(--line);
 	}
+	.tools {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
 	.bar {
 		display: flex;
 		align-items: center;
@@ -242,6 +260,8 @@
 	}
 	.brand {
 		color: var(--ink);
+		font-family: var(--font-display);
+		font-stretch: var(--display-stretch);
 		font-weight: 650;
 		font-size: 1rem;
 		letter-spacing: -0.01em;
@@ -275,10 +295,13 @@
 	.title {
 		margin-top: 0.75rem;
 		color: var(--ink);
-		font-weight: 640;
-		font-size: clamp(2.75rem, 9cqi, 7.5rem);
-		line-height: 0.95;
-		letter-spacing: -0.045em;
+		font-family: var(--font-display);
+		font-stretch: var(--display-stretch);
+		font-weight: var(--name-weight);
+		font-size: calc(var(--name-size) * 0.82);
+		line-height: var(--name-leading);
+		letter-spacing: var(--name-tracking);
+		text-transform: var(--name-case);
 		text-wrap: balance;
 		overflow-wrap: break-word;
 	}
@@ -303,9 +326,12 @@
 		padding: 0 1.35rem;
 		display: inline-flex;
 		align-items: center;
-		border-radius: 999px;
+		border: var(--bw) solid var(--accent);
+		border-radius: var(--radius-btn);
 		background: var(--accent);
 		color: var(--accent-ink);
+		box-shadow: var(--shadow);
+		font-family: var(--font-ui);
 		font-weight: 600;
 		text-decoration: none;
 		transition:
@@ -375,6 +401,7 @@
 		}
 	}
 	.num {
+		font-family: var(--font-display);
 		font-weight: 300;
 		font-size: clamp(2.5rem, 6cqi, 4.25rem);
 		line-height: 0.9;
@@ -388,6 +415,7 @@
 		gap: 0.75rem;
 	}
 	.step-body h2 {
+		font-family: var(--font-display);
 		font-size: clamp(1.3rem, 2.2cqi, 1.65rem);
 		line-height: 1.25;
 		font-weight: 620;
@@ -416,7 +444,7 @@
 	}
 	.shot {
 		border: 1px solid var(--line);
-		border-radius: 16px;
+		border-radius: var(--radius-card);
 		overflow: hidden;
 		background: var(--sunken);
 	}

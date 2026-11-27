@@ -140,6 +140,8 @@ export interface SiteContent {
 	education: Education[];
 	experience: Experience[];
 	projects: Project[];
+	/** Tema de la web y temas que pueden elegir los visitantes (ver `themes.ts`). */
+	appearance?: { theme: string; choices: string[] };
 	/** Secciones añadidas desde el editor. */
 	sections?: CustomSection[];
 	/** Orden de todas las secciones bajo la portada: las de serie y las nuevas, por su id. */

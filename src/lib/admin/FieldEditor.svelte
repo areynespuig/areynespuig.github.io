@@ -4,6 +4,7 @@
 	import type { Editor, FieldStatus } from './editor.svelte';
 	import type { FieldDef, TargetInfo } from './schema';
 	import ImageFramer from './ImageFramer.svelte';
+	import LooksField from './LooksField.svelte';
 
 	let { editor, info, field }: { editor: Editor; info: TargetInfo; field: FieldDef } = $props();
 
@@ -141,6 +142,8 @@
 			enlaces antiguos dejarán de funcionar.
 		</p>
 	</div>
+{:else if field.type === 'looks'}
+	<LooksField {editor} {info} />
 {:else if field.type === 'choice'}
 	<fieldset class="group">
 		<legend class="group-label">{field.label}</legend>
