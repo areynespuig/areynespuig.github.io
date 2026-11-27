@@ -15,7 +15,7 @@
 	import { useEditor } from './editor-context';
 	import { safeHref } from '../content/urls';
 	import { frameTransform } from '../content/photo';
-	import { hasText, isBuiltin, LAYOUT_INFO, paragraphs, sectionOrder, sectionVisible } from '../content/sections';
+	import { hasText, isBuiltin, LAYOUT_INFO, paragraphs, shownSections } from '../content/sections';
 	import { isValidSlug, projectPath } from '../content/project-pages';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import './site-theme.css';
@@ -73,13 +73,7 @@
 	};
 	const custom = $derived(new Map((content.sections ?? []).map((s) => [s.id, s])));
 	/** Secciones bajo la portada, en orden. En la web, las nuevas solo aparecen con título y contenido. */
-	const shown = $derived(
-		sectionOrder(content).filter((id) => {
-			if (isBuiltin(id)) return true;
-			const s = custom.get(id);
-			return !!s && (editing || sectionVisible(s));
-		})
-	);
+	const shown = $derived(shownSections(content, editing));
 	/** Letras de la palabra más larga: con títulos largos, el tamaño se ajusta a la columna. */
 	function longestWord(value: string): number {
 		return Math.max(1, ...value.split(/\s+/).map((w) => w.length));
@@ -1310,7 +1304,8 @@
 	/* Pie */
 	.foot {
 		border-top: 1px solid var(--line);
-		padding-block: 2.5rem 3rem;
+		/* Abajo queda sitio para el icono del terminal, que va fijo en la esquina. */
+		padding-block: 2.5rem calc(3rem + 3.5rem);
 		color: var(--muted);
 		font-size: 0.9375rem;
 	}
