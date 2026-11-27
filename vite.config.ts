@@ -7,6 +7,33 @@ import { SUPABASE } from './src/lib/config.ts';
 const supabase = SUPABASE.url ? [SUPABASE.url as `https://${string}.${string}`] : [];
 
 export default defineConfig({
+	css: {
+		postcss: {
+			plugins: [
+				{
+					/*
+					 * fontsource trae `font-display: swap`: el texto sale primero con otra letra y cambia al
+					 * llegar la buena, y con letras tan distintas como las de los temas parece que cambia el
+					 * tema. Con `block`, el texto espera a su letra (como mucho 3 s); /theme.js la pide en
+					 * cuanto se sabe el tema, antes de pintar.
+					 */
+					postcssPlugin: 'font-display-block',
+					AtRule: {
+						'font-face': (rule) => {
+							rule.walkDecls('font-display', (decl) => {
+								decl.value = 'block';
+							});
+						}
+					}
+				}
+			]
+		}
+	},
+	build: {
+		// Vite mete los archivos pequeños dentro del CSS como `data:`, y la CSP solo deja cargar fuentes
+		// de la propia web (`font-src 'self'`): las fuentes siempre van como archivo aparte.
+		assetsInlineLimit: (file) => (/\.(woff2?|ttf|otf)$/i.test(file) ? false : undefined)
+	},
 	plugins: [
 		sveltekit({
 			compilerOptions: {

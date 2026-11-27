@@ -15,6 +15,8 @@ export interface ThemeInfo {
 	swatches: [string, string, string];
 	/** Versiones que tiene: los temas de una sola no muestran el botón de claro/oscuro. */
 	schemes: readonly ('light' | 'dark')[];
+	/** Familias de letra que usa: /theme.js y el selector las cargan antes de enseñar el tema. */
+	fonts: readonly string[];
 }
 
 export const THEMES: Record<ThemeId, ThemeInfo> = {
@@ -22,55 +24,64 @@ export const THEMES: Record<ThemeId, ThemeInfo> = {
 		name: { es: 'Pino y porcelana', ca: 'Pi i porcellana', en: 'Pine and porcelain' },
 		hint: 'Claro y sereno: porcelana, tinta verdinegra y acento pino. Albert Sans.',
 		swatches: ['#fafbfa', '#1e5b48', '#12201b'],
-		schemes: ['light', 'dark']
+		schemes: ['light', 'dark'],
+		fonts: ['Albert Sans Variable']
 	},
 	cobalto: {
 		name: { es: 'Cobalto', ca: 'Cobalt', en: 'Cobalt' },
 		hint: 'Portada con franja azul intenso y el nombre en mayúsculas condensadas.',
 		swatches: ['#f5f6f4', '#2346e8', '#111316'],
-		schemes: ['light', 'dark']
+		schemes: ['light', 'dark'],
+		fonts: ['Atkinson Hyperlegible Next Variable', 'Bricolage Grotesque Variable']
 	},
 	terminal: {
 		name: { es: 'Terminal', ca: 'Terminal', en: 'Terminal' },
 		hint: 'Oscuro, de desarrollador: letra monoespaciada en ámbar y cursor que parpadea.',
 		swatches: ['#12100c', '#ffb000', '#f2e8d5'],
-		schemes: ['dark']
+		schemes: ['dark'],
+		fonts: ['IBM Plex Sans Variable', 'JetBrains Mono Variable']
 	},
 	suizo: {
 		name: { es: 'Suizo', ca: 'Suís', en: 'Swiss' },
 		hint: 'Tipografía suiza: blanco, negro y un solo rojo, sin esquinas redondeadas.',
 		swatches: ['#ffffff', '#e10600', '#000000'],
-		schemes: ['light']
+		schemes: ['light'],
+		fonts: ['Archivo Variable']
 	},
 	bruto: {
 		name: { es: 'Bruto', ca: 'Brut', en: 'Brutal' },
 		hint: 'Neobrutalista: bordes negros gruesos, sombras duras, amarillo y azul.',
 		swatches: ['#f2f2ee', '#ffd400', '#2b59ff'],
-		schemes: ['light']
+		schemes: ['light'],
+		fonts: ['Work Sans Variable', 'Unbounded Variable']
 	},
 	riso: {
 		name: { es: 'Riso', ca: 'Riso', en: 'Riso' },
 		hint: 'Como una impresión a dos tintas, rosa y azul, con las capas desplazadas.',
 		swatches: ['#f7f5f2', '#ff4fa0', '#2d5bd6'],
-		schemes: ['light']
+		schemes: ['light'],
+		fonts: ['Karla Variable', 'Syne Variable']
 	},
 	bauhaus: {
 		name: { es: 'Bauhaus', ca: 'Bauhaus', en: 'Bauhaus' },
 		hint: 'Círculo, cuadrado y triángulo en rojo, amarillo y azul; letra geométrica.',
 		swatches: ['#f4f3ee', '#d62828', '#1d4e89'],
-		schemes: ['light']
+		schemes: ['light'],
+		fonts: ['Jost Variable']
 	},
 	contraste: {
 		name: { es: 'Alto contraste', ca: 'Alt contrast', en: 'High contrast' },
 		hint: 'Pensado para leer bien: negro y blanco, letra grande, sin animaciones.',
 		swatches: ['#ffffff', '#ffe500', '#000000'],
-		schemes: ['light', 'dark']
+		schemes: ['light', 'dark'],
+		fonts: ['Atkinson Hyperlegible Next Variable']
 	},
 	medianoche: {
 		name: { es: 'Medianoche', ca: 'Mitjanit', en: 'Midnight' },
 		hint: 'Oscuro y elegante: azul noche, serif fina con cursiva y detalles dorados.',
 		swatches: ['#0e1424', '#e2b65b', '#ece7dd'],
-		schemes: ['dark']
+		schemes: ['dark'],
+		fonts: ['Instrument Sans Variable', 'Fraunces Variable']
 	}
 };
 
