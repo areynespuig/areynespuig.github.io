@@ -153,6 +153,10 @@ html[data-look='terminal'] .site,
 		border-color: var(--accent);
 		background: transparent;
 	}
+	/* Icono del terminal (SiteTerminal): borde ámbar, como los botones. */
+	& .term-btn {
+		border-color: var(--accent);
+	}
 	& .block h2::before {
 		content: '## ';
 		color: var(--accent);
@@ -292,6 +296,19 @@ html[data-look='bruto'] .site,
 		background: #ffd400;
 		color: #000000;
 	}
+	/* Icono del terminal: amarillo, borde negro y sombra dura; abierto, hundido como un botón pulsado. */
+	& .term-btn {
+		border-color: #000000;
+		background: #ffd400;
+		color: #000000;
+		box-shadow: 4px 4px 0 #000000;
+		filter: none;
+	}
+	& .term-btn.is-open,
+	& .term-btn:active {
+		transform: translate(3px, 3px);
+		box-shadow: 1px 1px 0 #000000;
+	}
 	& .block + .block,
 	& .topbar::before {
 		border-width: 3px;
@@ -361,6 +378,12 @@ html[data-look='riso'] .site,
 	}
 	& .btn:not(.primary) {
 		border: 2px solid var(--accent);
+	}
+	/* Icono del terminal: borde azul y la capa rosa desplazada, como la foto. */
+	& .term-btn {
+		border: 2px solid var(--accent);
+		box-shadow: 4px 4px 0 var(--pink);
+		filter: none;
 	}
 	& .card {
 		border-color: transparent;
@@ -475,6 +498,17 @@ html[data-look='bauhaus'] .site,
 		background: var(--yellow);
 	}
 	& .when {
+		color: var(--blue);
+	}
+	/* Icono del terminal: cuadrado azul con el icono amarillo; abierto, los colores se invierten. */
+	& .term-btn {
+		border-color: var(--blue);
+		background: var(--blue);
+		color: var(--yellow);
+	}
+	& .term-btn.is-open {
+		border-color: var(--yellow);
+		background: var(--yellow);
 		color: var(--blue);
 	}
 }
@@ -599,6 +633,10 @@ html[data-look='medianoche'] .site,
 		border-color: var(--accent);
 		background: transparent;
 		color: var(--accent);
+	}
+	/* Icono del terminal: filo dorado, como los botones. */
+	& .term-btn {
+		border-color: var(--accent);
 	}
 }
 
