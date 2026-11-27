@@ -5,7 +5,7 @@
 	import { absoluteUrl, safeHref } from '../content/urls';
 	import { hasText } from '../content/sections';
 	import { projectPath } from '../content/project-pages';
-	import { normalizeAppearance } from '../content/themes';
+	import { THEMES, normalizeAppearance } from '../content/themes';
 
 	let {
 		lang,
@@ -29,6 +29,12 @@
 	);
 	const shareText = $derived(project ? description : pick(content.hero.subtitle, lang));
 	const image = $derived(absoluteUrl(project?.image || content.profile.photo));
+
+	const look = $derived(normalizeAppearance(content.appearance));
+	/** data-fonts-<tema>: familias de letra de cada tema que se puede ver, para que /theme.js las pida en seguida. */
+	const lookFonts = $derived(
+		Object.fromEntries(look.choices.map((id) => [`data-fonts-${id}`, THEMES[id].fonts.join(',')]))
+	);
 
 	const person = $derived(
 		JSON.stringify({
@@ -57,8 +63,8 @@
 	<meta property="og:url" content={SITE.url + path(lang)} />
 	<meta property="og:image" content={image} />
 	<meta property="og:locale" content={LOCALES[lang]} />
-	<!-- Tema principal y temas que puede elegir el visitante: los lee /theme.js antes de pintar. -->
-	<meta name="site-look" content={normalizeAppearance(content.appearance).theme} data-choices={normalizeAppearance(content.appearance).choices.join(' ')} />
+	<!-- Tema principal, temas que puede elegir el visitante y su letra: los lee /theme.js antes de pintar. -->
+	<meta name="site-look" content={look.theme} data-choices={look.choices.join(' ')} {...lookFonts} />
 	<meta name="theme-color" content="#2346e8" />
 	{#if !project}
 		{@html `<script type="application/ld+json">${person}</script>`}
