@@ -478,6 +478,11 @@
 
 <svelte:window onkeydown={onWindowKey} />
 
+<!--
+	El icono va dentro de un `.site` sin caja propia (display: contents): así toma las variables de la
+	plantilla que se ve (colores, esquinas, bordes, modo claro u oscuro), también las de las propias.
+-->
+<div class="site term-host">
 <button
 	bind:this={button}
 	type="button"
@@ -493,6 +498,7 @@
 		<path d="M12 18h7"></path>
 	</svg>
 </button>
+</div>
 
 {#if mounted}
 	<div
@@ -535,8 +541,7 @@
 {/if}
 
 <style>
-	/* Aspecto de terminal de Linux (paleta Tango, como GNOME Terminal), igual con cualquier plantilla de la web. */
-	.term-btn,
+	/* La ventana tiene aspecto de terminal de Linux (paleta Tango, como GNOME Terminal) con cualquier plantilla. */
 	.term {
 		--term-bg: #171421;
 		--term-fg: #d0cfcc;
@@ -556,24 +561,42 @@
 		display: grid;
 		place-items: center;
 		padding: 0;
-		border: 1px solid rgb(255 255 255 / 0.16);
-		border-radius: 14px;
-		background: var(--term-bg);
-		color: var(--term-green);
-		box-shadow: 0 10px 28px -12px rgb(0 0 0 / 0.55);
+		/* Como los botones de la barra de arriba: superficie, línea y esquinas de la plantilla; el icono, en su acento. */
+		/* La línea, algo más marcada: flota sobre cualquier fondo, también en modo oscuro. */
+		border: var(--bw) solid color-mix(in oklch, var(--ink) 22%, var(--line));
+		border-radius: var(--radius-pill);
+		background: var(--surface);
+		color: var(--accent);
+		box-shadow: var(--shadow);
+		/* Flota sobre la página: una sombra suave aparte de la de la plantilla. */
+		filter: drop-shadow(0 8px 16px rgb(0 0 0 / 0.18));
 		cursor: pointer;
 		view-transition-name: site-terminal-btn;
 		transition:
-			transform 0.15s var(--term-ease),
-			box-shadow 0.2s;
+			transform 0.15s var(--ease-out),
+			border-color 0.2s,
+			background-color 0.2s,
+			color 0.2s;
+	}
+	.term-host {
+		display: contents;
 	}
 	.term-btn:hover {
-		box-shadow: 0 14px 32px -12px rgb(0 0 0 / 0.65);
+		border-color: color-mix(in oklch, var(--ink) 45%, var(--line));
+	}
+	/* Abierto: se rellena con el acento, como un botón pulsado. */
+	.term-btn.is-open {
+		border-color: var(--accent);
+		background: var(--accent);
+		color: var(--accent-ink);
 	}
 	.term-btn:active {
 		transform: scale(0.94);
 	}
-	.term-btn:focus-visible,
+	.term-btn:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 3px;
+	}
 	.x:focus-visible {
 		outline: 2px solid var(--term-blue);
 		outline-offset: 3px;
