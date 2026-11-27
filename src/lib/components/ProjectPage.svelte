@@ -503,7 +503,8 @@
 	/* Pie */
 	.foot {
 		border-top: 1px solid var(--line);
-		padding-block: 2.5rem 3rem;
+		/* Abajo queda sitio para el icono del terminal, que va fijo en la esquina. */
+		padding-block: 2.5rem calc(3rem + 3.5rem);
 		color: var(--muted);
 		font-size: 0.95rem;
 	}

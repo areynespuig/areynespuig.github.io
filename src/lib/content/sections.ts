@@ -27,6 +27,19 @@ export function sectionOrder(content: SiteContent): string[] {
 	return out;
 }
 
+/**
+ * Secciones que se ven bajo la portada, en orden: las de la web siempre y las nuevas cuando tienen
+ * título y contenido (en el editor, todas). Lo usan el menú de la web y el terminal.
+ */
+export function shownSections(content: SiteContent, editing = false): string[] {
+	const custom = new Map((content.sections ?? []).map((s) => [s.id, s]));
+	return sectionOrder(content).filter((id) => {
+		if (isBuiltin(id)) return true;
+		const s = custom.get(id);
+		return !!s && (editing || sectionVisible(s));
+	});
+}
+
 export function hasText(value: L10n | undefined): boolean {
 	return !!value && LANGS.some((l) => value[l]?.trim());
 }
