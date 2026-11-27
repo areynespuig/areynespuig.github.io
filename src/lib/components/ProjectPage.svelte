@@ -127,11 +127,13 @@
 									</div>
 									<!-- Sin numerar, la imagen es la protagonista: va al lado del texto y se abre a tamaño completo. -->
 									{#if block.image && !page.steps}
+										<!-- El enlace pasa por el mismo filtro que los demás: solo http(s). -->
+										{@const full = safeHref(block.image)}
 										<figure class="shot">
-											{#if editing}
+											{#if editing || !full}
 												<img src={asset(block.image)} alt={pick(block.imageAlt, lang)} />
 											{:else}
-												<a href={block.image} target="_blank" rel="noopener">
+												<a href={full} target="_blank" rel="noopener">
 													<img src={block.image} alt={pick(block.imageAlt, lang)} loading="lazy" />
 													<span class="visually-hidden">{ui.newTab}</span>
 												</a>

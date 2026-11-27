@@ -191,7 +191,7 @@
 				class="visually-hidden"
 				tabindex="-1"
 				aria-hidden="true"
-				accept={field.type === 'image' ? 'image/png,image/jpeg,image/webp,image/avif,image/svg+xml' : 'application/pdf'}
+				accept={field.type === 'image' ? 'image/png,image/jpeg,image/webp,image/avif' : 'application/pdf'}
 				onchange={(e) => {
 					const file = e.currentTarget.files?.[0];
 					if (file) editor.upload(info, field.key, file);

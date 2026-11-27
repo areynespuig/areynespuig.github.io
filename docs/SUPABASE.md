@@ -22,7 +22,8 @@ Con esto, el editor de `/admin/` pide correo y contraseña, guarda el contenido 
 
 1. En el panel, abre **SQL Editor**.
 2. Pega todo `supabase/migrations/20261125230000_portfolio.sql` y pulsa **Run**.
-3. Pega `supabase/seed.sql` y pulsa **Run**. Copia el contenido actual de la web en la base de datos.
+3. Haz lo mismo con cada archivo posterior de `supabase/migrations/`, en orden de fecha (por ejemplo, `20261127160000_hide_updated_by.sql`, que oculta a los visitantes qué cuenta publicó el contenido).
+4. Pega `supabase/seed.sql` y pulsa **Run**. Copia el contenido actual de la web en la base de datos.
 
 ### 3. Cierra el registro
 

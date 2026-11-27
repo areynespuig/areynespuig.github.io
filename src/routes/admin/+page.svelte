@@ -14,6 +14,13 @@
 	import { LANG_NAMES, LANG_PATHS } from '#lib/i18n.ts';
 	import { SITE } from '#lib/config.ts';
 
+	/**
+	 * Dentro de un iframe de otra web, alguien podría tapar el editor y hacer que se pulse algo sin
+	 * querer (clickjacking). GitHub Pages no deja enviar la cabecera que lo impide, así que el editor
+	 * se niega a cargarse si no es la página principal de la pestaña.
+	 */
+	const framed = window.self !== window.top;
+
 	const editor = new Editor();
 	provideEditor({
 		isSelected: (t) => editor.selected === t,
@@ -28,6 +35,7 @@
 	});
 
 	onMount(() => {
+		if (framed) return;
 		// En desarrollo local se puede editar sin Supabase (sin publicar): si no está configurado,
 		// o abriendo /admin/?local para probar sin iniciar sesión.
 		editor.init({ allowOffline: dev, forceOffline: dev && new URL(location.href).searchParams.has('local') });
@@ -58,6 +66,12 @@
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
+{#if framed}
+	<main class="framed">
+		<p>Por seguridad, el editor solo se abre en su propia pestaña.</p>
+		<a href={location.href} target="_blank" rel="noopener">Abrir el editor en una pestaña nueva</a>
+	</main>
+{:else}
 <div class={['cms', editor.phase !== 'ready' && 'is-gate']}>
 	{#if editor.phase !== 'ready'}
 		<Gate {editor} />
@@ -144,8 +158,21 @@
 		</div>
 	{/if}
 </div>
+{/if}
 
 <style>
+	.framed {
+		min-height: 100dvh;
+		display: grid;
+		place-content: center;
+		gap: 12px;
+		padding: 24px;
+		font-family: 'Albert Sans Variable', system-ui, sans-serif;
+		text-align: center;
+	}
+	.framed p {
+		margin: 0;
+	}
 	:global(body) {
 		margin: 0;
 		overflow: hidden;
