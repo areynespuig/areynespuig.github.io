@@ -5,7 +5,8 @@
 	import { absoluteUrl, safeHref } from '../content/urls';
 	import { hasText } from '../content/sections';
 	import { projectPath } from '../content/project-pages';
-	import { THEMES, normalizeAppearance } from '../content/themes';
+	import { lookInfo, normalizeAppearance } from '../content/appearance';
+	import TemplateStyles from './TemplateStyles.svelte';
 
 	let {
 		lang,
@@ -31,10 +32,22 @@
 	const image = $derived(absoluteUrl(project?.image || content.profile.photo));
 
 	const look = $derived(normalizeAppearance(content.appearance));
-	/** data-fonts-<tema>: familias de letra de cada tema que se puede ver, para que /theme.js las pida en seguida. */
-	const lookFonts = $derived(
-		Object.fromEntries(look.choices.map((id) => [`data-fonts-${id}`, THEMES[id].fonts.join(',')]))
+	/**
+	 * Para /theme.js, de cada plantilla que se puede ver: data-fonts-<id> (su letra, para pedirla en
+	 * seguida) y, si es propia, data-base-<id> (la plantilla de la web en la que se basa).
+	 */
+	const lookAttrs = $derived(
+		Object.fromEntries(
+			look.choices.flatMap((id) => {
+				const info = lookInfo(look, id);
+				const attrs: [string, string][] = [[`data-fonts-${id}`, info.fonts.join(',')]];
+				if (info.template) attrs.push([`data-base-${id}`, info.base]);
+				return attrs;
+			})
+		)
 	);
+	/** Las plantillas propias que se pueden ver necesitan sus variables CSS. */
+	const shownTemplates = $derived(look.templates.filter((t) => look.choices.includes(t.id)));
 
 	const person = $derived(
 		JSON.stringify({
@@ -64,9 +77,11 @@
 	<meta property="og:image" content={image} />
 	<meta property="og:locale" content={LOCALES[lang]} />
 	<!-- Tema principal, temas que puede elegir el visitante y su letra: los lee /theme.js antes de pintar. -->
-	<meta name="site-look" content={look.theme} data-choices={look.choices.join(' ')} {...lookFonts} />
+	<meta name="site-look" content={look.theme} data-choices={look.choices.join(' ')} {...lookAttrs} />
 	<meta name="theme-color" content="#2346e8" />
 	{#if !project}
 		{@html `<script type="application/ld+json">${person}</script>`}
 	{/if}
 </svelte:head>
+
+<TemplateStyles templates={shownTemplates} />

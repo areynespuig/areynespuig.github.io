@@ -45,7 +45,7 @@
 	background: var(--paper);
 	color: var(--ink);
 	font-family: var(--font);
-	font-size: 1.0625rem;
+	font-size: calc(var(--base-fs, 1.0625rem) * var(--text-scale, 1));
 	line-height: 1.65;
 	font-optical-sizing: auto;
 	-webkit-font-smoothing: antialiased;

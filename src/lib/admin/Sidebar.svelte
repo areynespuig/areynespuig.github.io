@@ -3,7 +3,7 @@
 	import { formatDate, type Editor } from './editor.svelte';
 	import { resolveTarget, sectionList } from './schema';
 	import { supabaseConfigured } from '../config';
-	import { THEMES, normalizeAppearance } from '../content/themes';
+	import { lookInfo, normalizeAppearance } from '../content/appearance';
 
 	let { editor }: { editor: Editor } = $props();
 
@@ -36,6 +36,7 @@
 	}
 	const sections = $derived(sectionList(editor.draft));
 	const appearance = $derived(normalizeAppearance(editor.draft.appearance));
+	const mainLook = $derived(lookInfo(appearance, appearance.theme));
 
 	function scrollTo(el: Element | null) {
 		el?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
@@ -114,10 +115,10 @@
 		<h2 id="look-h">Apariencia</h2>
 		<button type="button" class={['look', editor.selected === 'appearance' && 'is-cur']} onclick={() => editor.openAppearance()}>
 			<span class="sw" aria-hidden="true">
-				{#each THEMES[appearance.theme].swatches as color, i (i)}<i style:background={color}></i>{/each}
+				{#each mainLook.swatches as color, i (i)}<i style:background={color}></i>{/each}
 			</span>
 			<span class="look-txt">
-				<strong>{THEMES[appearance.theme].name.es}</strong>
+				<strong>{mainLook.name('es')}</strong>
 				<span>
 					{appearance.choices.length > 1
 						? `Los visitantes pueden elegir entre ${appearance.choices.length} temas`

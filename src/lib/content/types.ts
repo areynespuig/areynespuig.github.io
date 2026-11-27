@@ -1,3 +1,5 @@
+import type { TemplateDef } from './templates';
+
 export const LANGS = ['es', 'ca', 'en'] as const;
 export type Lang = (typeof LANGS)[number];
 
@@ -141,7 +143,7 @@ export interface SiteContent {
 	experience: Experience[];
 	projects: Project[];
 	/** Tema de la web y temas que pueden elegir los visitantes (ver `themes.ts`). */
-	appearance?: { theme: string; choices: string[] };
+	appearance?: { theme: string; choices: string[]; templates?: TemplateDef[] };
 	/** Secciones añadidas desde el editor. */
 	sections?: CustomSection[];
 	/** Orden de todas las secciones bajo la portada: las de serie y las nuevas, por su id. */

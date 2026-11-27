@@ -493,7 +493,7 @@ html[data-look='contraste'] .site,
 	--accent-ink: light-dark(#ffffff, #000000);
 	--mark: #ffe500;
 	--font: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
-	font-size: 1.1875rem;
+	--base-fs: 1.1875rem;
 	--name-size: clamp(2.75rem, 9cqi, 6.5rem);
 	--name-weight: 800;
 	--name-tracking: -0.02em;

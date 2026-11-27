@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { THEMES, normalizeAppearance, type ThemeId } from '../content/themes';
+	import { lookInfo, normalizeAppearance } from '../content/appearance';
 	import { chooseLook, look } from '../content/look.svelte';
 	import type { Lang, SiteContent } from '../content/types';
 	import { UI } from '../i18n';
@@ -11,8 +11,8 @@
 	const appearance = $derived(normalizeAppearance(content.appearance));
 	let menu = $state<HTMLElement>();
 
-	function pick(id: ThemeId) {
-		chooseLook(id);
+	function pick(id: string) {
+		chooseLook(id, content.appearance);
 		menu?.hidePopover();
 	}
 </script>
@@ -25,12 +25,13 @@
 		<p class="look-title">{ui.themeLabel}</p>
 		<ul>
 			{#each appearance.choices as id (id)}
+				{@const info = lookInfo(appearance, id)}
 				<li>
 					<button type="button" aria-pressed={(look.current ?? appearance.theme) === id} onclick={() => pick(id)}>
 						<span class="sw" aria-hidden="true">
-							{#each THEMES[id].swatches as color, i (i)}<i style:background={color}></i>{/each}
+							{#each info.swatches as color, i (i)}<i style:background={color}></i>{/each}
 						</span>
-						{THEMES[id].name[lang]}
+						{info.name(lang)}
 					</button>
 				</li>
 			{/each}
