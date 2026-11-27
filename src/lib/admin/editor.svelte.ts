@@ -279,10 +279,22 @@ export class Editor {
 		return this.loginError;
 	}
 
+	/** Cierra la sesión y borra de este navegador el borrador sin publicar (por si el ordenador es compartido). */
 	async logout() {
+		if (this.changes > 0) {
+			const what = this.changes === 1 ? 'un cambio sin publicar' : `${this.changes} cambios sin publicar`;
+			if (!confirm(`Tienes ${what}. Al cerrar sesión se borran de este navegador. ¿Cerrar sesión igualmente?`)) return;
+		}
 		await this.#supabase?.auth.signOut();
-		this.email = '';
 		this.ready = false;
+		try {
+			localStorage.removeItem(DRAFT_KEY);
+		} catch {
+			/* sin almacenamiento: no hay borrador que borrar */
+		}
+		this.draft = copy(this.published);
+		this.pending = {};
+		this.email = '';
 		this.phase = 'login';
 	}
 
