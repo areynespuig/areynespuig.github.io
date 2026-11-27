@@ -1,28 +1,41 @@
-/* Colores y tipografía de la web. Los comparten la portada y las páginas de los proyectos. */
+/*
+ * Tema «Pino y porcelana»: porcelana y tinta verdinegra, con un solo acento (pino) que solo marca
+ * lo que tiene significado: enlaces, estado actual y progreso. Una sola familia, Albert Sans.
+ * Lo comparten la portada, las páginas de proyecto y la página de error.
+ */
 .site {
 	color-scheme: light dark;
-	--paper: light-dark(#f5f6f4, #101214);
-	--surface: light-dark(#ffffff, #181b1f);
-	--sunken: light-dark(#eceef1, #20242a);
-	--ink: light-dark(#111316, #eceef0);
-	--muted: light-dark(#565c65, #a2a9b2);
-	--line: light-dark(#d8dbd7, #2b2f35);
-	--accent: light-dark(#2346e8, #8da2ff);
-	--hero: light-dark(#2346e8, #1a2b8c);
-	--hero-ink: #f5f6f4;
-	--hero-soft: #d3d9f9;
-	--display: 'Bricolage Grotesque Variable', 'Arial Narrow', sans-serif;
-	--body: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
+	--paper: light-dark(#fafbfa, #0c1512);
+	--surface: light-dark(#ffffff, #121d19);
+	--sunken: light-dark(#f1f3f1, #17241f);
+	--ink: light-dark(#12201b, #e6edea);
+	--muted: light-dark(#5b6762, #97a7a0);
+	--line: light-dark(#e2e6e3, #22312b);
+	--accent: light-dark(#1e5b48, #8fcbb2);
+	--accent-soft: light-dark(#ddebe4, #1b3029);
+	--accent-ink: light-dark(#ffffff, #0c1512);
+	--font: 'Albert Sans Variable', 'Albert Sans', system-ui, sans-serif;
+	--display: var(--font);
+	--body: var(--font);
+	/* Curvas: las entradas frenan al final; lo que responde al usuario, igual pero más corto. */
+	--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+	--ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 	background: var(--paper);
 	color: var(--ink);
-	font-family: var(--body);
+	font-family: var(--font);
 	font-size: 1.0625rem;
-	line-height: 1.6;
+	line-height: 1.65;
+	font-optical-sizing: auto;
 	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 [data-theme='light'] .site {
 	color-scheme: light;
 }
 [data-theme='dark'] .site {
 	color-scheme: dark;
+}
+.site ::selection {
+	background: var(--accent-soft);
+	color: var(--ink);
 }

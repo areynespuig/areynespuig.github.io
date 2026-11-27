@@ -1,6 +1,5 @@
 <script lang="ts">
-	import '@fontsource-variable/bricolage-grotesque/standard.css';
-	import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
+	import '@fontsource-variable/albert-sans/index.css';
 	import {
 		LANGS,
 		SECTION_LAYOUTS,
@@ -35,6 +34,9 @@
 	const editor = useEditor();
 	const editing = !!editor;
 	const ui = $derived(UI[lang]);
+
+	/** En la barra: nombre y primer apellido. */
+	const brandName = $derived(content.profile.name.trim().split(/\s+/).slice(0, 2).join(' '));
 
 	const nameParts = $derived.by(() => {
 		const words = content.profile.name.trim().split(/\s+/);
@@ -98,6 +100,50 @@
 		return `${start}–${end}`;
 	}
 
+	// Menú: marca la sección que se está leyendo con una píldora que se desliza (solo en la web).
+	let navEl = $state<HTMLElement>();
+	let activeId = $state<string | null>(null);
+	let pill = $state({ x: 0, y: 0, w: 0, h: 0, shown: false, ready: false });
+
+	$effect(() => {
+		if (editing) return;
+		const targets = ['inicio', ...shown]
+			.map((id) => document.getElementById(id))
+			.filter((el): el is HTMLElement => !!el);
+		// La sección activa es la que cruza una franja estrecha a un tercio de la altura de la ventana.
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) if (entry.isIntersecting) activeId = entry.target.id;
+			},
+			{ rootMargin: '-35% 0px -60% 0px' }
+		);
+		for (const el of targets) observer.observe(el);
+		return () => observer.disconnect();
+	});
+
+	$effect(() => {
+		if (editing || !navEl) return;
+		const nav = navEl;
+		const place = () => {
+			const link = activeId ? nav.querySelector<HTMLElement>(`a[data-id="${CSS.escape(activeId)}"]`) : null;
+			if (!link) {
+				pill.shown = false;
+				return;
+			}
+			pill.x = link.offsetLeft;
+			pill.y = link.offsetTop;
+			pill.w = link.offsetWidth;
+			pill.h = link.offsetHeight;
+			pill.shown = true;
+			// La primera vez aparece en su sitio; después ya se desliza.
+			if (!pill.ready) requestAnimationFrame(() => (pill.ready = true));
+		};
+		place();
+		const resize = new ResizeObserver(place);
+		resize.observe(nav);
+		return () => resize.disconnect();
+	});
+
 </script>
 
 {#snippet say(value: L10n)}
@@ -119,7 +165,7 @@
 {#snippet heading(id: string)}
 	<div class="block-head">
 		<Editable target={`section:${id}`} label={`Sección ${sectionTitle(id)}`} as="div" block>
-			<h2 id={`${id}-h`} style:--chars={isBuiltin(id) ? undefined : longestWord(sectionTitle(id))}>
+			<h2 id={`${id}-h`} style:--chars={longestWord(sectionTitle(id))}>
 				{#if isBuiltin(id)}
 					{sectionTitle(id)}
 				{:else}
@@ -234,7 +280,7 @@
 								<article class="card">
 									{@render cardImage(item.image, item.imageAlt, item.title)}
 									<div class="card-body">
-										<h3 title={item.title}>{item.title || (editing ? 'Proyecto sin nombre' : '')}</h3>
+										<h3 title={item.title} style:view-transition-name={editing ? undefined : `project-${item.id}`}>{item.title || (editing ? 'Proyecto sin nombre' : '')}</h3>
 										<p class="year">{item.year ?? ''}</p>
 										<p class="card-text" title={text(item.description)}>{@render say(item.description)}</p>
 										<div class="card-links">
@@ -371,94 +417,94 @@
 		<a class="skip" href="#contenido">{ui.skip}</a>
 	{/if}
 
-	<header class="hero" id="inicio">
-		<div class="wrap">
-			<div class="bar">
-				<span class="brand">Albert Reynés</span>
-				<nav class="nav" aria-label={ui.navLabel}>
-					{#each shown as id (id)}
-						<a href={`#${id}`}>{sectionTitle(id)}</a>
+	<header class="topbar">
+		<div class="wrap bar">
+			{#if editing}
+				<span class="brand">{brandName}</span>
+			{:else}
+				<a class="brand" href={`${LANG_PATHS[lang]}#inicio`}>{brandName}</a>
+			{/if}
+			<nav class="nav" aria-label={ui.navLabel} bind:this={navEl}>
+				<span
+					class={['nav-pill', pill.shown && 'shown', pill.ready && 'ready']}
+					style:transform={`translate(${pill.x}px, ${pill.y}px)`}
+					style:width={`${pill.w}px`}
+					style:height={`${pill.h}px`}
+					aria-hidden="true"
+				></span>
+				{#each shown as id (id)}
+					<a href={`#${id}`} data-id={id} aria-current={activeId === id ? 'true' : undefined}>{sectionTitle(id)}</a>
+				{/each}
+			</nav>
+			<div class="tools">
+				<ul class="langs" aria-label={ui.langLabel}>
+					{#each LANGS as l (l)}
+						<li>
+							{#if editing}
+								<span class={['lang', l === lang && 'current']}>{l.toUpperCase()}</span>
+							{:else}
+								<a href={LANG_PATHS[l]} hreflang={l} lang={l} aria-current={l === lang ? 'page' : undefined} data-sveltekit-reset="false">
+									<span aria-hidden="true">{l.toUpperCase()}</span>
+									<span class="visually-hidden">{LANG_NAMES[l]}</span>
+								</a>
+							{/if}
+						</li>
 					{/each}
-				</nav>
+				</ul>
 				{#if !editing}
 					<ThemeToggle {lang} />
 				{/if}
 			</div>
-
-			<div class="hero-main">
-				<div>
-					<div class="intro">
-						<Editable target="hero.availability" label="Disponibilidad">
-							<span class="availability">{@render say(content.hero.availability)}</span>
-						</Editable>
-						<Editable target="hero.greeting" label="Saludo">
-							<span class="greeting">{@render say(content.hero.greeting)}</span>
-						</Editable>
-					</div>
-
-					<Editable target="profile" label="Nombre" as="div" block>
-						<h1 class="name">
-							<span>{nameParts.first}</span>
-							{#if nameParts.rest}<span>{nameParts.rest}</span>{/if}
-						</h1>
-					</Editable>
-				</div>
-				<Editable target="photo" label="Foto de perfil" as="div">
-					<div class="photo">
-						<img
-							src={asset(content.profile.photo)}
-							alt={pick(content.profile.photoAlt, lang)}
-							width={photoSize.width}
-							height={photoSize.height}
-							fetchpriority="high"
-							style:transform={frameTransform(content.profile.photoFrame)}
-						/>
-					</div>
-				</Editable>
-			</div>
-
-			<div class="hero-foot">
-				<Editable target="hero.subtitle" label="Subtítulo en los tres idiomas" as="div" block>
-					<nav aria-label={ui.langLabel}>
-						<ul class="langs">
-							{#each LANGS as l (l)}
-								<li>
-									<a
-										href={LANG_PATHS[l]}
-										hreflang={l}
-										lang={l}
-										aria-current={l === lang ? 'page' : undefined}
-										data-sveltekit-reset="false"
-									>
-										<span class="code" aria-hidden="true">{l.toUpperCase()}</span>
-										<span class="sub">
-											{#if editing && !content.hero.subtitle[l]?.trim()}
-												<span class="missing">{UI[l].missing}</span>
-											{:else}
-												{editing ? content.hero.subtitle[l] : pick(content.hero.subtitle, l)}
-											{/if}
-										</span>
-										<span class="visually-hidden">({LANG_NAMES[l]})</span>
-									</a>
-								</li>
-							{/each}
-						</ul>
-					</nav>
-				</Editable>
-			</div>
-
-			<Editable target="profile" label="Currículum y enlaces" as="div" block>
-				<div class="actions">
-					<a class="btn primary" href={link(content.profile.cv)} download>
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>
-						{ui.cv}
-					</a>
-					<a class="btn" href={link(content.profile.linkedin)} rel="me noopener" target="_blank">LinkedIn<span class="visually-hidden"> {ui.newTab}</span></a>
-					<a class="btn" href={link(content.profile.github)} rel="me noopener" target="_blank">GitHub<span class="visually-hidden"> {ui.newTab}</span></a>
-				</div>
-			</Editable>
 		</div>
 	</header>
+
+	<div class="hero" id="inicio">
+		<div class="wrap hero-grid">
+			<div class="hero-text">
+				<Editable target="hero.availability" label="Disponibilidad">
+					<span class="status"><span class="status-dot" aria-hidden="true"></span>{@render say(content.hero.availability)}</span>
+				</Editable>
+				<Editable target="hero.greeting" label="Saludo">
+					<span class="greeting">{@render say(content.hero.greeting)}</span>
+				</Editable>
+				<Editable target="profile" label="Nombre" as="div" block>
+					<h1 class="name">
+						<span class="name-line">{nameParts.first}</span>
+						{#if nameParts.rest}<span class="name-line">{nameParts.rest}</span>{/if}
+					</h1>
+				</Editable>
+				<Editable target="hero.subtitle" label="Subtítulo" as="div" block>
+					<p class="hero-lead">{@render say(content.hero.subtitle)}</p>
+				</Editable>
+				<Editable target="profile" label="Currículum y enlaces" as="div" block>
+					<div class="actions">
+						<a class="btn primary" href={link(content.profile.cv)} download>
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>
+							{ui.cv}
+						</a>
+						<a class="btn" href={link(content.profile.linkedin)} rel="me noopener" target="_blank">LinkedIn<span class="visually-hidden"> {ui.newTab}</span></a>
+						<a class="btn" href={link(content.profile.github)} rel="me noopener" target="_blank">GitHub<span class="visually-hidden"> {ui.newTab}</span></a>
+					</div>
+				</Editable>
+			</div>
+			<div class="hero-photo">
+				<Editable target="photo" label="Foto de perfil" as="div">
+					<div class="photo">
+						<div class="photo-inner">
+							<img
+								src={asset(content.profile.photo)}
+								alt={pick(content.profile.photoAlt, lang)}
+								width={photoSize.width}
+								height={photoSize.height}
+								fetchpriority="high"
+								style:transform={frameTransform(content.profile.photoFrame)}
+							/>
+						</div>
+					</div>
+				</Editable>
+			</div>
+		</div>
+	</div>
 
 	<svelte:element this={editing ? 'div' : 'main'} id="contenido">
 		{#each shown as id (id)}
@@ -521,7 +567,6 @@
 	.site :where(h1, h2, h3, p, ul, ol, figure) {
 		margin: 0;
 	}
-
 	.wrap {
 		width: min(100% - 2.5rem, 76rem);
 		margin-inline: auto;
@@ -531,7 +576,6 @@
 			width: min(100% - 5rem, 76rem);
 		}
 	}
-
 	.visually-hidden {
 		position: absolute;
 		width: 1px;
@@ -544,268 +588,358 @@
 		position: absolute;
 		left: 1rem;
 		top: -4rem;
-		z-index: 10;
-		padding: 0.75rem 1rem;
-		border-radius: 8px;
-		background: var(--hero-ink);
-		color: #111316;
-		font-weight: 700;
+		z-index: 30;
+		padding: 0.7rem 1.1rem;
+		border-radius: 999px;
+		background: var(--ink);
+		color: var(--paper);
+		font-weight: 600;
+		text-decoration: none;
 	}
 	.skip:focus {
-		top: 1rem;
+		top: 0.75rem;
 	}
 	.missing {
 		font-style: italic;
-		opacity: 0.75;
+		opacity: 0.7;
+	}
+	a:focus-visible,
+	button:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 3px;
+	}
+
+	/* Barra superior: fija; su fondo aparece al empezar a bajar (con el propio scroll, sin JavaScript). */
+	.topbar {
+		position: sticky;
+		top: 0;
+		z-index: 20;
+	}
+	.topbar::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: color-mix(in oklch, var(--paper) 84%, transparent);
+		-webkit-backdrop-filter: blur(16px) saturate(1.3);
+		backdrop-filter: blur(16px) saturate(1.3);
+		border-bottom: 1px solid var(--line);
+	}
+	@supports (animation-timeline: scroll()) {
+		.site:not(.editing) .topbar::before {
+			animation: bar-solid linear both;
+			animation-timeline: scroll(root);
+			animation-range: 0 140px;
+		}
+	}
+	@keyframes bar-solid {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+	.editing .topbar {
+		position: relative;
+	}
+	.bar {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 1.25rem;
+		min-height: 4.25rem;
+	}
+	.brand {
+		margin-right: auto;
+		color: var(--ink);
+		font-weight: 650;
+		font-size: 1rem;
+		letter-spacing: -0.01em;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.nav {
+		position: relative;
+		display: none;
+		align-items: center;
+	}
+	@container site (width >= 62rem) {
+		.nav {
+			display: flex;
+		}
+	}
+	.nav a {
+		position: relative;
+		z-index: 1;
+		padding: 0.4rem 0.85rem;
+		border-radius: 999px;
+		color: var(--muted);
+		font-size: 0.9375rem;
+		font-weight: 500;
+		text-decoration: none;
+		white-space: nowrap;
+		transition: color 0.25s;
+	}
+	.nav a:hover,
+	.nav a[aria-current='true'] {
+		color: var(--ink);
+	}
+	/* La píldora que marca la sección que se está leyendo: se desliza de un enlace a otro. */
+	.nav-pill {
+		position: absolute;
+		left: 0;
+		top: 0;
+		border-radius: 999px;
+		background: var(--accent-soft);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.3s;
+	}
+	.nav-pill.shown {
+		opacity: 1;
+	}
+	.nav-pill.ready {
+		transition:
+			opacity 0.3s,
+			transform 0.5s var(--ease-out),
+			width 0.5s var(--ease-out);
+	}
+	.tools {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+	.langs {
+		list-style: none;
+		margin: 0;
+		padding: 3px;
+		display: flex;
+		gap: 2px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+	}
+	.langs a,
+	.langs .lang {
+		display: block;
+		padding: 0.25rem 0.6rem;
+		border-radius: 999px;
+		color: var(--muted);
+		font-size: 0.78rem;
+		font-weight: 650;
+		letter-spacing: 0.03em;
+		line-height: 1.5;
+		text-decoration: none;
+		transition:
+			color 0.2s,
+			background-color 0.2s;
+	}
+	.langs a:hover {
+		color: var(--ink);
+	}
+	.langs a[aria-current='page'],
+	.langs .current {
+		background: var(--ink);
+		color: var(--paper);
 	}
 
 	/* Portada */
 	.hero {
-		background: var(--hero);
-		color: var(--hero-ink);
-		padding-block: 1rem clamp(3rem, 7cqi, 5rem);
+		padding-block: clamp(2.5rem, 7cqi, 6rem) clamp(4rem, 9cqi, 7.5rem);
 	}
-	.hero :focus-visible {
-		outline: 3px solid var(--hero-ink);
-		outline-offset: 3px;
-	}
-	.bar {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem 2rem;
-		min-height: 3rem;
-	}
-	.brand {
-		font-family: var(--display);
-		font-weight: 700;
-		font-stretch: 75%;
-		font-size: 1.3rem;
-		letter-spacing: 0.01em;
-		margin-right: auto;
-	}
-	.nav {
-		display: none;
-	}
-	@container site (width >= 48rem) {
-		.nav {
-			display: flex;
-			flex-wrap: wrap;
-			justify-content: flex-end;
-			gap: 0 1.75rem;
-		}
-	}
-	.nav a {
-		color: var(--hero-ink);
-		text-decoration: none;
-		font-weight: 700;
-		font-size: 0.95rem;
-		padding-block: 0.5rem;
-	}
-	.nav a:hover {
-		text-decoration: underline;
-		text-underline-offset: 0.35em;
-	}
-	.hero-main {
-		margin-top: clamp(2.5rem, 8cqi, 6rem);
+	.hero-grid {
 		display: grid;
-		gap: 2rem;
+		gap: 2.25rem;
+	}
+	.hero-photo {
+		order: -1;
 	}
 	@container site (width >= 60rem) {
-		.hero-main {
+		.hero-grid {
 			grid-template-columns: minmax(0, 1fr) auto;
 			align-items: end;
-			gap: 3rem;
+			column-gap: 4rem;
+		}
+		.hero-photo {
+			order: 0;
 		}
 	}
-	.intro {
+	.hero-text {
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		gap: 0.4rem;
 	}
-	.availability {
-		font-size: 0.95rem;
-		color: var(--hero-soft);
+	.status {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.35rem 0.9rem 0.35rem 0.75rem;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--muted);
+		font-size: 0.875rem;
+		font-weight: 500;
+		line-height: 1.5;
+	}
+	.status-dot {
+		position: relative;
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--accent);
+	}
+	.status-dot::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: 50%;
+		background: var(--accent);
+		opacity: 0;
 	}
 	.greeting {
-		font-size: clamp(1.25rem, 2.4cqi, 1.75rem);
-		font-weight: 700;
+		display: block;
+		margin-top: clamp(1.75rem, 4cqi, 2.75rem);
+		color: var(--muted);
+		font-size: clamp(1.15rem, 2cqi, 1.4rem);
+		font-weight: 450;
+		letter-spacing: -0.01em;
 	}
 	.name {
-		margin-top: 0.35rem;
-		font-family: var(--display);
-		font-weight: 800;
-		font-stretch: 75%;
-		text-transform: uppercase;
-		font-size: clamp(3.2rem, 16cqi, 15rem);
-		line-height: 0.88;
-		letter-spacing: -0.005em;
+		margin-top: 0.3rem;
+		color: var(--ink);
+		font-weight: 640;
+		font-size: clamp(3.25rem, 11.5cqi, 9rem);
+		line-height: 0.92;
+		letter-spacing: -0.048em;
+		text-wrap: balance;
 	}
-	.name > span {
+	.name-line {
 		display: block;
 	}
-
-	.hero-foot {
-		margin-top: clamp(2rem, 5cqi, 3.25rem);
-	}
-	.langs {
-		list-style: none;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.15rem;
-		max-width: 44rem;
-	}
-	.langs a {
-		display: grid;
-		grid-template-columns: 2.6rem minmax(0, 1fr);
-		gap: 0.85rem;
-		align-items: baseline;
-		padding: 0.45rem 0.5rem 0.45rem 0;
-		color: var(--hero-soft);
-		text-decoration: none;
-		font-size: clamp(1.05rem, 1.8cqi, 1.3rem);
-		line-height: 1.35;
-		border-radius: 8px;
-	}
-	.langs a:hover {
-		color: var(--hero-ink);
-	}
-	.langs a:hover .sub {
-		text-decoration: underline;
-		text-underline-offset: 0.3em;
-		text-decoration-thickness: 1px;
-	}
-	.langs a[aria-current='page'] {
-		color: var(--hero-ink);
-		font-weight: 700;
-	}
-	.code {
-		font-family: var(--display);
-		font-weight: 700;
-		font-stretch: 75%;
-		font-size: 0.95rem;
-		letter-spacing: 0.06em;
-		text-align: center;
-		border: 1.5px solid currentColor;
-		border-radius: 6px;
-		padding-block: 0.1rem;
-		translate: 0 -0.1em;
-	}
-	.langs a[aria-current='page'] .code {
-		background: var(--hero-ink);
-		border-color: var(--hero-ink);
-		color: var(--hero);
-	}
-	/*
-	 * El recuadro tiene el ancho fijo y toma la proporción de la foto, así no se recorta.
-	 * El encuadre del editor mueve y escala la imagen dentro de él. Solo una foto
-	 * extremadamente alargada (más de 4:7) se recorta por abajo.
-	 */
-	.photo {
-		--photo-w: clamp(8rem, 17cqi, 15rem);
-		width: var(--photo-w);
-		max-height: calc(var(--photo-w) * 1.75);
-		border-radius: 14px;
-		overflow: hidden;
-		background: color-mix(in oklch, var(--hero-ink) 15%, var(--hero));
-	}
-	.photo img {
-		display: block;
-		width: 100%;
-		height: auto;
+	.hero-lead {
+		margin-top: clamp(1.5rem, 3.5cqi, 2.4rem);
+		max-width: 32ch;
+		color: color-mix(in oklch, var(--ink) 82%, var(--paper));
+		font-size: clamp(1.25rem, 2.3cqi, 1.6rem);
+		line-height: 1.4;
+		letter-spacing: -0.012em;
+		text-wrap: pretty;
 	}
 	.actions {
-		margin-top: 2.25rem;
+		margin-top: clamp(2rem, 4cqi, 2.75rem);
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
 	}
 	.btn {
 		min-height: 48px;
-		padding: 0 1.25rem;
+		padding: 0 1.35rem;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
-		border-radius: 10px;
-		border: 1.5px solid var(--hero-ink);
-		color: var(--hero-ink);
-		font-weight: 700;
+		gap: 0.55rem;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
+		font-weight: 600;
+		font-size: 0.975rem;
 		text-decoration: none;
+		transition:
+			border-color 0.2s,
+			background-color 0.2s,
+			transform 0.12s var(--ease-out);
 	}
 	.btn:hover {
-		background: color-mix(in oklch, var(--hero-ink) 14%, transparent);
+		border-color: color-mix(in oklch, var(--ink) 35%, var(--line));
+	}
+	.btn:active {
+		transform: scale(0.97);
 	}
 	.btn.primary {
-		background: var(--hero-ink);
-		color: var(--hero);
+		border-color: var(--accent);
+		background: var(--accent);
+		color: var(--accent-ink);
 	}
 	.btn.primary:hover {
-		background: color-mix(in oklch, var(--hero-ink) 86%, var(--hero));
+		background: color-mix(in oklch, var(--accent) 86%, var(--ink));
+	}
+	/*
+	 * El recuadro de la foto toma su proporción (no se recorta) y el encuadre del editor
+	 * la mueve dentro. La capa intermedia permite animar la entrada sin tocar el encuadre.
+	 */
+	.photo {
+		--photo-w: clamp(8.5rem, 20cqi, 17rem);
+		width: var(--photo-w);
+		max-height: calc(var(--photo-w) * 1.75);
+		border-radius: 22px;
+		overflow: hidden;
+		background: var(--sunken);
+	}
+	.photo-inner img {
+		display: block;
+		width: 100%;
+		height: auto;
 	}
 
 	/* Secciones */
 	.block {
-		padding-block: clamp(3.5rem, 8cqi, 6.5rem);
+		padding-block: clamp(4rem, 9cqi, 7.5rem);
 	}
 	.block + .block {
 		border-top: 1px solid var(--line);
 	}
-	.block :focus-visible {
-		outline: 3px solid var(--accent);
-		outline-offset: 3px;
-	}
 	.block-grid {
 		display: grid;
-		gap: 1.75rem 3rem;
-	}
-	@container site (width >= 60rem) {
-		.block-grid {
-			grid-template-columns: 16rem minmax(0, 1fr);
-		}
-		.block-head {
-			position: sticky;
-			top: 1.5rem;
-			align-self: start;
-		}
+		gap: 2rem 4rem;
 	}
 	.block h2 {
-		font-family: var(--display);
-		font-weight: 800;
-		font-stretch: 75%;
-		font-size: clamp(2.25rem, 5.5cqi, 3.75rem);
-		line-height: 0.95;
-		letter-spacing: -0.005em;
+		color: var(--ink);
+		font-weight: 620;
+		font-size: clamp(2rem, 4cqi, 3rem);
+		line-height: 1.04;
+		letter-spacing: -0.035em;
 		text-wrap: balance;
-		/* Los títulos de las secciones nuevas pueden ser palabras largas: se parten en vez de invadir el contenido. */
 		hyphens: auto;
 		overflow-wrap: break-word;
 	}
 	@container site (width >= 60rem) {
-		/* En la columna estrecha, una palabra larga reduce el título lo justo para caber (≈0,4 em por letra). */
+		.block-grid {
+			grid-template-columns: 17rem minmax(0, 1fr);
+		}
+		.block-head {
+			position: sticky;
+			top: 6rem;
+			align-self: start;
+		}
+		.editing .block-head {
+			top: 1.5rem;
+		}
+		/* En la columna, una palabra larga reduce el título lo justo para caber (≈0,58 em por letra). */
 		.block-head h2 {
-			font-size: min(clamp(2.25rem, 5.5cqi, 3.75rem), calc(16rem / (var(--chars, 1) * 0.4)));
+			font-size: min(clamp(2rem, 4cqi, 3rem), calc(17rem / (var(--chars, 1) * 0.58)));
 		}
 	}
 	.bio {
-		font-size: clamp(1.2rem, 2.1cqi, 1.5rem);
-		line-height: 1.5;
-		max-width: 46ch;
+		max-width: 40ch;
+		font-size: clamp(1.3rem, 2.2cqi, 1.65rem);
+		line-height: 1.45;
+		letter-spacing: -0.012em;
 		text-wrap: pretty;
 	}
 	.skills-h {
-		margin-top: 2.75rem;
+		margin-top: 3rem;
 		margin-bottom: 0.5rem;
-		font-size: 1rem;
-		font-weight: 700;
 		color: var(--muted);
+		font-size: 0.9375rem;
+		font-weight: 600;
 	}
 	.skills {
 		list-style: none;
 		padding: 0;
 		display: grid;
-		column-gap: 2rem;
+		column-gap: 2.5rem;
 	}
 	@container site (width >= 40rem) {
 		.skills {
@@ -813,51 +947,86 @@
 		}
 	}
 	.skills li {
-		padding: 0.8rem 0;
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.85rem 0;
 		border-top: 1px solid var(--line);
 	}
+	.skills li::before {
+		content: '';
+		flex: none;
+		width: 6px;
+		height: 6px;
+		border-radius: 2px;
+		background: var(--accent);
+		transform: translateY(-0.15em);
+	}
 
+	/* Líneas de tiempo: un raíl con un punto por entrada. */
 	.rows {
+		position: relative;
 		list-style: none;
 		padding: 0;
 	}
-	.rows > li + li {
-		border-top: 1px solid var(--line);
+	.rows::before {
+		content: '';
+		position: absolute;
+		top: 0.85rem;
+		bottom: 0.85rem;
+		left: 4px;
+		width: 1px;
+		background: var(--accent);
+		opacity: 0.45;
+		transform-origin: top;
 	}
 	.row {
+		position: relative;
 		display: grid;
-		gap: 0.35rem 2rem;
-		padding-block: 1.5rem;
+		gap: 0.3rem 3rem;
+		padding: 0 0 2.25rem 1.9rem;
 	}
-	.rows > li:first-child .row {
-		padding-top: 0.25rem;
+	.rows > li:last-child .row {
+		padding-bottom: 0;
+	}
+	.row::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0.5rem;
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		background: var(--accent);
+		box-shadow: 0 0 0 4px var(--paper);
 	}
 	@container site (width >= 40rem) {
 		.row {
-			grid-template-columns: 11rem minmax(0, 1fr);
+			grid-template-columns: 9rem minmax(0, 1fr);
+			padding-left: 0;
+		}
+		.rows::before {
+			left: calc(9rem + 1.5rem - 0.5px);
+		}
+		.row::before {
+			left: calc(9rem + 1.5rem - 4.5px);
 		}
 	}
 	.when {
-		font-family: var(--display);
-		font-weight: 700;
-		font-stretch: 75%;
-		font-size: 1.5rem;
-		line-height: 1.15;
 		color: var(--accent);
+		font-weight: 600;
 		font-variant-numeric: tabular-nums;
 	}
 	.when-small {
-		font-family: var(--body);
-		font-stretch: 100%;
-		font-weight: 700;
-		font-size: 0.95rem;
 		color: var(--muted);
-		line-height: 1.6;
+		font-weight: 500;
+		font-size: 0.875rem;
 	}
 	.row h3 {
-		font-size: 1.25rem;
+		font-size: 1.2rem;
 		line-height: 1.3;
-		font-weight: 700;
+		font-weight: 620;
+		letter-spacing: -0.015em;
 		text-wrap: balance;
 	}
 	.org {
@@ -870,11 +1039,16 @@
 		text-wrap: pretty;
 	}
 
+	/* Tarjetas: todas miden lo mismo; título en una línea y texto en tres, cortados con «…». */
+	.cards > li > :global(.editable),
+	.cards > li > :global(.editable) > :global(.editable-content) {
+		height: 100%;
+	}
 	.cards {
 		list-style: none;
 		padding: 0;
 		display: grid;
-		gap: 1.5rem;
+		gap: 1.25rem;
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
 	}
 	.card {
@@ -882,20 +1056,20 @@
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--line);
-		border-radius: 16px;
+		border-radius: 20px;
 		background: var(--surface);
 		overflow: hidden;
+		transition: border-color 0.3s;
 	}
-	/* En el editor, la tarjeta ocupa toda la celda igual que en la web. */
-	.cards > li > :global(.editable),
-	.cards > li > :global(.editable) > :global(.editable-content) {
-		height: 100%;
+	.card:hover {
+		border-color: color-mix(in oklch, var(--ink) 22%, var(--line));
 	}
 	/* La imagen llena el recuadro (sin bandas); si es transparente, se ve sobre blanco. */
 	.card figure {
 		aspect-ratio: 16 / 9;
 		overflow: hidden;
 		background: #fff;
+		border-bottom: 1px solid var(--line);
 	}
 	.card figure img {
 		display: block;
@@ -903,52 +1077,53 @@
 		height: 100%;
 		object-fit: cover;
 		object-position: center top;
+		transition: transform 0.9s var(--ease-out);
+	}
+	.site:not(.editing) .card:hover figure img {
+		transform: scale(1.04);
 	}
 	.card .no-image {
 		display: grid;
 		place-items: center;
 		padding: 1.25rem;
-		background: color-mix(in oklch, var(--accent) 14%, var(--sunken));
+		background: var(--accent-soft);
 		color: var(--accent);
-		font-family: var(--display);
-		font-weight: 800;
-		font-stretch: 75%;
-		font-size: 2.25rem;
-		line-height: 1;
+		font-weight: 650;
+		font-size: 2rem;
+		line-height: 1.05;
+		letter-spacing: -0.03em;
 		text-align: center;
 		overflow-wrap: anywhere;
 	}
 	.card .no-image-note {
-		font-family: var(--body);
-		font-stretch: 100%;
+		color: var(--muted);
 		font-weight: 400;
 		font-size: 1rem;
 		font-style: italic;
-		color: var(--muted);
+		letter-spacing: 0;
 	}
 	.card-body {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
-		padding: 1.25rem 1.25rem 1.4rem;
+		gap: 0.4rem;
+		padding: 1.25rem 1.35rem 1.35rem;
 	}
-	/* Todas las tarjetas miden lo mismo: título en una línea y texto en tres, cortados con «…». */
 	.card h3 {
-		font-family: var(--display);
-		font-weight: 800;
-		font-stretch: 75%;
-		font-size: 1.85rem;
-		line-height: 1.05;
+		font-size: 1.35rem;
+		font-weight: 640;
+		line-height: 1.2;
+		letter-spacing: -0.025em;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 	.card .year {
-		min-height: 1.6em;
+		min-height: 1.5em;
 		color: var(--muted);
-		font-size: 0.95rem;
-		line-height: 1.6;
+		font-size: 0.875rem;
+		line-height: 1.5;
+		font-variant-numeric: tabular-nums;
 	}
 	.card-text {
 		display: -webkit-box;
@@ -956,32 +1131,43 @@
 		-webkit-line-clamp: 3;
 		line-clamp: 3;
 		overflow: hidden;
-		min-height: calc(3lh);
-	}
-	.card a {
-		align-self: flex-start;
-		padding-block: 0.4rem;
-		color: var(--accent);
-		font-weight: 700;
-		text-underline-offset: 0.25em;
+		min-height: 3lh;
+		color: color-mix(in oklch, var(--ink) 85%, var(--paper));
 	}
 	.card-links {
 		margin-top: auto;
 		min-height: 2.6rem;
+		padding-top: 0.5rem;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.5rem 1.25rem;
+		gap: 0.5rem 1.1rem;
+	}
+	.card a {
+		color: var(--accent);
+		font-weight: 600;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 0.25em;
+	}
+	.card a:hover {
+		text-decoration-thickness: 2px;
 	}
 	/* La página del proyecto es el enlace principal: va como botón; el proyecto externo, como texto. */
 	.card a.card-page {
-		padding: 0.4rem 0.95rem;
-		border: 1.5px solid currentColor;
+		padding: 0.45rem 1rem;
 		border-radius: 999px;
+		background: var(--accent);
+		color: var(--accent-ink);
 		text-decoration: none;
+		transition:
+			background-color 0.2s,
+			transform 0.12s var(--ease-out);
 	}
 	.card a.card-page:hover {
-		background: color-mix(in oklch, var(--accent) 12%, transparent);
+		background: color-mix(in oklch, var(--accent) 86%, var(--ink));
+	}
+	.card a.card-page:active {
+		transform: scale(0.97);
 	}
 
 	/* Secciones nuevas */
@@ -990,7 +1176,7 @@
 		flex-direction: column;
 		gap: 1em;
 		max-width: 62ch;
-		font-size: clamp(1.1rem, 1.7cqi, 1.25rem);
+		font-size: clamp(1.1rem, 1.6cqi, 1.2rem);
 		text-wrap: pretty;
 	}
 	.prose p,
@@ -999,8 +1185,9 @@
 	}
 	.lead {
 		max-width: 62ch;
-		margin-bottom: 1.75rem;
-		font-size: clamp(1.1rem, 1.7cqi, 1.25rem);
+		margin-bottom: 2rem;
+		color: color-mix(in oklch, var(--ink) 85%, var(--paper));
+		font-size: clamp(1.1rem, 1.6cqi, 1.2rem);
 		text-wrap: pretty;
 	}
 	.after-text {
@@ -1015,34 +1202,32 @@
 		margin-top: 0.6rem;
 		padding-block: 0.2rem;
 		color: var(--accent);
-		font-weight: 700;
+		font-weight: 600;
 		text-underline-offset: 0.25em;
 	}
-
 	.add-item {
 		width: 100%;
 		min-height: 48px;
-		margin-top: 1rem;
-		border: 2px dashed var(--line);
-		border-radius: 12px;
+		margin-top: 1.25rem;
+		border: 1px dashed color-mix(in oklch, var(--ink) 25%, var(--line));
+		border-radius: 14px;
 		background: transparent;
 		color: var(--muted);
 		font: inherit;
-		font-weight: 700;
+		font-weight: 600;
 		cursor: pointer;
 	}
 	.add-item:hover {
 		border-color: oklch(0.8 0.17 85);
 		color: var(--ink);
 	}
-
 	.new-section {
 		border-top: 1px solid var(--line);
 		padding-block: 2.5rem 3.5rem;
 	}
 	.new-section-h {
 		margin-bottom: 0.75rem;
-		font-weight: 700;
+		font-weight: 650;
 	}
 	.new-section-opts {
 		display: grid;
@@ -1054,8 +1239,8 @@
 		flex-direction: column;
 		gap: 0.25rem;
 		padding: 1rem 1.1rem;
-		border: 2px dashed var(--line);
-		border-radius: 12px;
+		border: 1px dashed color-mix(in oklch, var(--ink) 25%, var(--line));
+		border-radius: 14px;
 		background: transparent;
 		color: var(--muted);
 		font: inherit;
@@ -1071,16 +1256,13 @@
 	.new-section-opts button:hover {
 		border-color: oklch(0.8 0.17 85);
 	}
-	.new-section-opts button:focus-visible {
-		outline: 3px solid var(--accent);
-		outline-offset: 3px;
-	}
 
+	/* Pie */
 	.foot {
 		border-top: 1px solid var(--line);
 		padding-block: 2.5rem 3rem;
 		color: var(--muted);
-		font-size: 0.95rem;
+		font-size: 0.9375rem;
 	}
 	.foot-grid {
 		display: flex;
@@ -1094,41 +1276,131 @@
 		padding: 0;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.25rem 1.25rem;
+		gap: 0.25rem 1.5rem;
 	}
+	/* El subrayado crece desde la izquierda al pasar el ratón. */
 	.foot a {
-		color: var(--ink);
-		text-underline-offset: 0.25em;
 		display: inline-block;
 		padding-block: 0.35rem;
+		color: var(--ink);
+		text-decoration: none;
+		background: linear-gradient(currentColor, currentColor) 0 100% / 0% 1px no-repeat;
+		transition: background-size 0.35s var(--ease-out);
+	}
+	.foot a:hover {
+		background-size: 100% 1px;
 	}
 	.foot a[aria-current='page'] {
-		font-weight: 700;
-		text-decoration: none;
+		font-weight: 650;
 	}
 
+	/*
+	 * Movimiento. La portada entra una vez, como una sola ola: el nombre «enfoca» engordando de
+	 * fino a grueso (lo principal, lo que más recorre), la foto se descubre de abajo arriba y
+	 * el resto le sigue con huecos que se acortan. No hay entradas por sección. Las líneas de
+	 * tiempo se dibujan con el propio scroll. En el editor y con movimiento reducido, todo está quieto.
+	 */
 	@media (prefers-reduced-motion: no-preference) {
-		.site:not(.editing) .name > span {
-			animation: rise 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+		.site:not(.editing) .status {
+			animation: fade 0.5s ease-out both;
 		}
-		.site:not(.editing) .name > span + span {
-			animation-delay: 0.09s;
+		.site:not(.editing) .status-dot::after {
+			animation: ping 1.4s var(--ease-out) 0.9s 1 both;
 		}
-		.site:not(.editing) .photo,
-		.site:not(.editing) .hero-foot,
+		.site:not(.editing) .greeting {
+			animation: rise 0.6s var(--ease-out) both;
+		}
+		.site:not(.editing) .name-line {
+			animation: focus-in 1.1s var(--ease-out) both;
+		}
+		.site:not(.editing) .name-line + .name-line {
+			animation-delay: 0.11s;
+		}
+		.site:not(.editing) .photo {
+			animation: reveal 1.1s var(--ease-out) 0.2s both;
+		}
+		.site:not(.editing) .photo-inner {
+			animation: settle 1.6s var(--ease-out) 0.2s both;
+		}
+		.site:not(.editing) .hero-lead {
+			animation: rise 0.6s var(--ease-out) 0.28s both;
+		}
 		.site:not(.editing) .actions {
-			animation: fade 0.6s 0.35s both;
+			animation: rise 0.6s var(--ease-out) 0.34s both;
 		}
 	}
-	@keyframes rise {
-		from {
-			opacity: 0;
-			transform: translateY(0.3em);
+	@supports (animation-timeline: view()) {
+		@media (prefers-reduced-motion: no-preference) {
+			/* La punta del raíl y el punto que se rellena van juntos, al 70 % de la altura de la ventana. */
+			.site:not(.editing) .rows::before {
+				animation: rail linear both;
+				animation-timeline: view();
+				animation-range: entry 30vh entry calc(100% + 30vh);
+			}
+			.site:not(.editing) .row::before {
+				animation: dot linear both;
+				animation-timeline: view();
+				animation-range: cover 28vh cover 32vh;
+			}
 		}
 	}
 	@keyframes fade {
 		from {
 			opacity: 0;
+		}
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+	}
+	@keyframes focus-in {
+		from {
+			opacity: 0;
+			font-weight: 200;
+			transform: translateY(0.12em);
+		}
+	}
+	@keyframes reveal {
+		from {
+			clip-path: inset(100% 0 0 0 round 22px);
+		}
+		to {
+			clip-path: inset(0 0 0 0 round 22px);
+		}
+	}
+	@keyframes settle {
+		from {
+			transform: scale(1.1);
+		}
+	}
+	@keyframes ping {
+		from {
+			opacity: 0.55;
+			transform: scale(1);
+		}
+		to {
+			opacity: 0;
+			transform: scale(3.2);
+		}
+	}
+	@keyframes rail {
+		from {
+			transform: scaleY(0);
+		}
+		to {
+			transform: scaleY(1);
+		}
+	}
+	@keyframes dot {
+		from {
+			background: var(--line);
+			transform: scale(0.55);
+		}
+		to {
+			background: var(--accent);
+			transform: scale(1);
 		}
 	}
 </style>

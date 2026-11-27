@@ -22,9 +22,28 @@ img {
 	max-width: 100%;
 }
 
+/* Cambio de página (idioma o proyecto): fundido corto; lo que comparte nombre (el título de un proyecto) viaja. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-	animation-duration: 0.22s;
+	animation-duration: 0.25s;
+}
+::view-transition-group(*) {
+	animation-duration: 0.55s;
+	animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Lo que solo está en una de las dos páginas (otro proyecto) se funde al ritmo de la página, sin quedarse atrás. */
+::view-transition-old(*):only-child,
+::view-transition-new(*):only-child {
+	animation-duration: 0.25s;
+}
+/* Cambio de tema: el nuevo se abre en círculo desde el botón (lo anima ThemeToggle), sin fundido ni piezas sueltas. */
+html[data-theme-switch]::view-transition-old(root),
+html[data-theme-switch]::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
+html[data-theme-switch] * {
+	view-transition-name: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

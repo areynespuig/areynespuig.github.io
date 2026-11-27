@@ -1,6 +1,5 @@
 <script lang="ts">
-	import '@fontsource-variable/bricolage-grotesque/standard.css';
-	import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
+	import '@fontsource-variable/albert-sans/index.css';
 	import './site-theme.css';
 	import { LANGS, type L10n, type Lang, type Project, type ProjectPage, type SiteContent } from '../content/types';
 	import { LANG_NAMES, LANG_PATHS, UI, pick } from '../i18n';
@@ -78,7 +77,7 @@
 			{/if}
 
 			<Editable target={`projects:${project.id}`} label="Nombre, año y enlace del proyecto" as="div" block>
-				<h1 class="title">{project.title || (editing ? 'Proyecto sin nombre' : '')}</h1>
+				<h1 class="title" style:view-transition-name={editing ? undefined : `project-${project.id}`}>{project.title || (editing ? 'Proyecto sin nombre' : '')}</h1>
 			</Editable>
 			<Editable target={`page:${project.id}`} label="Introducción y dirección de la página" as="div" block>
 				<p class="lead">{@render say(intro)}</p>
@@ -207,44 +206,43 @@
 		left: 1rem;
 		top: -4rem;
 		z-index: 10;
-		padding: 0.75rem 1rem;
-		border-radius: 8px;
-		background: var(--hero-ink);
-		color: #111316;
-		font-weight: 700;
+		padding: 0.7rem 1.1rem;
+		border-radius: 999px;
+		background: var(--ink);
+		color: var(--paper);
+		font-weight: 600;
+		text-decoration: none;
 	}
 	.skip:focus {
-		top: 1rem;
+		top: 0.75rem;
 	}
 	.missing {
 		font-style: italic;
-		opacity: 0.75;
+		opacity: 0.7;
+	}
+	a:focus-visible,
+	button:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 3px;
 	}
 
-	/* Cabecera */
+	/* Cabecera, con el mismo tema que la portada */
 	.hero {
-		background: var(--hero);
-		color: var(--hero-ink);
-		padding-block: 1rem clamp(2.75rem, 6cqi, 4.5rem);
-	}
-	.hero :focus-visible {
-		outline: 3px solid var(--hero-ink);
-		outline-offset: 3px;
+		padding-block: 0 clamp(3rem, 7cqi, 5.5rem);
+		border-bottom: 1px solid var(--line);
 	}
 	.bar {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 1rem;
-		min-height: 3rem;
+		min-height: 4.25rem;
 	}
 	.brand {
-		font-family: var(--display);
-		font-weight: 700;
-		font-stretch: 75%;
-		font-size: 1.3rem;
-		letter-spacing: 0.01em;
-		color: var(--hero-ink);
+		color: var(--ink);
+		font-weight: 650;
+		font-size: 1rem;
+		letter-spacing: -0.01em;
 		text-decoration: none;
 	}
 	.back {
@@ -255,36 +253,40 @@
 		padding: 0.4rem 0;
 		border: 0;
 		background: none;
-		color: var(--hero-soft);
+		color: var(--muted);
 		font: inherit;
-		font-weight: 700;
-		font-size: 0.95rem;
+		font-weight: 600;
+		font-size: 0.9375rem;
 		text-decoration: none;
 		cursor: pointer;
+		transition: color 0.2s;
+	}
+	.back svg {
+		transition: transform 0.3s var(--ease-out);
 	}
 	.back:hover {
-		color: var(--hero-ink);
-		text-decoration: underline;
-		text-underline-offset: 0.3em;
+		color: var(--ink);
+	}
+	.back:hover svg {
+		transform: translateX(-3px);
 	}
 	.title {
 		margin-top: 0.75rem;
-		font-family: var(--display);
-		font-weight: 800;
-		font-stretch: 75%;
-		text-transform: uppercase;
-		font-size: clamp(2.75rem, 10cqi, 8.5rem);
-		line-height: 0.9;
-		letter-spacing: -0.005em;
+		color: var(--ink);
+		font-weight: 640;
+		font-size: clamp(2.75rem, 9cqi, 7.5rem);
+		line-height: 0.95;
+		letter-spacing: -0.045em;
 		text-wrap: balance;
 		overflow-wrap: break-word;
 	}
 	.lead {
 		margin-top: clamp(1.25rem, 3cqi, 2rem);
 		max-width: 44ch;
-		color: var(--hero-soft);
-		font-size: clamp(1.15rem, 2cqi, 1.45rem);
+		color: color-mix(in oklch, var(--ink) 82%, var(--paper));
+		font-size: clamp(1.2rem, 2.1cqi, 1.5rem);
 		line-height: 1.45;
+		letter-spacing: -0.01em;
 		text-wrap: pretty;
 	}
 	.actions {
@@ -296,24 +298,45 @@
 	}
 	.btn {
 		min-height: 48px;
-		padding: 0 1.25rem;
+		padding: 0 1.35rem;
 		display: inline-flex;
 		align-items: center;
-		border-radius: 10px;
-		background: var(--hero-ink);
-		color: var(--hero);
-		font-weight: 700;
+		border-radius: 999px;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-weight: 600;
 		text-decoration: none;
+		transition:
+			background-color 0.2s,
+			transform 0.12s var(--ease-out);
 	}
 	.btn:hover {
-		background: color-mix(in oklch, var(--hero-ink) 86%, var(--hero));
+		background: color-mix(in oklch, var(--accent) 86%, var(--ink));
+	}
+	.btn:active {
+		transform: scale(0.97);
 	}
 	.year {
-		font-family: var(--display);
-		font-weight: 700;
-		font-stretch: 75%;
-		font-size: 1.5rem;
-		color: var(--hero-soft);
+		color: var(--muted);
+		font-weight: 600;
+		font-size: 1.05rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* Al llegar desde la portada, la entrada y los botones acompañan al título (que ya viaja solo). */
+	@media (prefers-reduced-motion: no-preference) {
+		.site:not(.editing) .lead {
+			animation: rise 0.6s var(--ease-out) 0.12s both;
+		}
+		.site:not(.editing) .actions {
+			animation: rise 0.6s var(--ease-out) 0.2s both;
+		}
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
 	}
 
 	/* Bloques */
@@ -350,11 +373,10 @@
 		}
 	}
 	.num {
-		font-family: var(--display);
-		font-weight: 800;
-		font-stretch: 75%;
-		font-size: clamp(2.5rem, 6cqi, 4.5rem);
+		font-weight: 300;
+		font-size: clamp(2.5rem, 6cqi, 4.25rem);
 		line-height: 0.9;
+		letter-spacing: -0.04em;
 		color: var(--accent);
 		font-variant-numeric: tabular-nums;
 	}
@@ -366,7 +388,8 @@
 	.step-body h2 {
 		font-size: clamp(1.3rem, 2.2cqi, 1.65rem);
 		line-height: 1.25;
-		font-weight: 700;
+		font-weight: 620;
+		letter-spacing: -0.02em;
 		text-wrap: balance;
 	}
 	.step-body p {
@@ -391,10 +414,9 @@
 	}
 	.shot {
 		border: 1px solid var(--line);
-		border-radius: 12px;
+		border-radius: 16px;
 		overflow: hidden;
 		background: var(--sunken);
-		box-shadow: 0 1px 2px color-mix(in oklch, var(--ink) 8%, transparent);
 	}
 	.shot a {
 		display: block;
