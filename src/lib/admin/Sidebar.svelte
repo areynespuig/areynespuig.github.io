@@ -121,8 +121,8 @@
 				<strong>{mainLook.name('es')}</strong>
 				<span>
 					{appearance.choices.length > 1
-						? `Los visitantes pueden elegir entre ${appearance.choices.length} temas`
-						: 'Tema único: sin selector en la web'}
+						? `Los visitantes pueden elegir entre ${appearance.choices.length} plantillas`
+						: 'Plantilla única: sin selector en la web'}
 				</span>
 			</span>
 		</button>
