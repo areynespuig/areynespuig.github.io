@@ -4,7 +4,9 @@ import { LANGS, type CollectionKey, type L10n, type Lang, type SectionLayout, ty
 import { newSection, newSectionItem, sectionOrder } from '../content/sections';
 import { newPageBlock, newProjectPage, slugify, uniqueSlug } from '../content/project-pages';
 import { SUPABASE } from '../config';
-import { normalizeAppearance } from '../content/themes';
+import { normalizeAppearance } from '../content/appearance';
+import { THEMES, isThemeId } from '../content/themes';
+import { cleanName, copyName, groupForTarget, newTemplateId, type GroupId, type TemplateDef } from '../content/templates';
 import { fetchLatestContent } from '../content/remote';
 import { allTargets, resolveTarget, reviewKey, type TargetInfo } from './schema';
 import { getSupabase } from './supabase';
@@ -86,6 +88,8 @@ function flatten(content: SiteContent): Map<string, string> {
 	const look = normalizeAppearance(appearance);
 	out.set('appearance.theme', look.theme);
 	out.set('appearance.choices', look.choices.join(','));
+	// Cada plantilla propia cuenta como una entrada: crearla o quitarla es un cambio, y editarla, otro.
+	for (const t of look.templates) out.set(`appearance.templates:${t.id}`, JSON.stringify(t));
 	out.set('sections#display', sectionOrder(content).join(','));
 	return out;
 }
@@ -124,7 +128,10 @@ function clean(content: SiteContent): SiteContent {
 		for (const l of LANGS) section.points[l] = trimList(section.points[l] ?? []);
 	}
 	if (content.sections) content.order = sectionOrder(content);
-	if (content.appearance) content.appearance = normalizeAppearance(content.appearance);
+	if (content.appearance) {
+		const { templates, ...look } = normalizeAppearance(content.appearance);
+		content.appearance = templates.length ? { ...look, templates } : look;
+	}
 	// Direcciones de las páginas de proyecto: válidas y sin repetir.
 	const slugs = new Set<string>();
 	for (const project of content.projects) {
@@ -238,6 +245,16 @@ export class Editor {
 		return project?.page ? (project as typeof project & { page: NonNullable<typeof project.page> }) : undefined;
 	});
 	info = $derived(resolveTarget(this.draft, this.selected));
+
+	/** Plantilla propia que se está editando (sus opciones ocupan el panel de la derecha). */
+	template = $state<string | null>(null);
+	/** Grupo de opciones abierto; al hacer clic en la vista previa, el de esa parte. */
+	templateGroup = $state<GroupId>('hero');
+	/** Plantilla recién creada: el panel pone el cursor en su nombre para poder cambiarlo. */
+	justCreated = $state<string | null>(null);
+	editingTemplate = $derived(
+		this.template ? (this.draft.appearance?.templates?.find((t) => t.id === this.template) ?? null) : null
+	);
 	issues = $derived(this.collectIssues());
 
 	#supabase: SupabaseClient | null = null;
@@ -375,6 +392,12 @@ export class Editor {
 	// Selección
 
 	select(target: string) {
+		// Editando una plantilla, un clic en la vista previa abre las opciones de esa parte.
+		if (this.editingTemplate) {
+			const group = groupForTarget(target);
+			if (group) this.templateGroup = group;
+			return;
+		}
 		this.selected = target;
 	}
 
@@ -384,7 +407,8 @@ export class Editor {
 		const onThisPage = this.viewProject && target === `projects:${this.viewProject.id}`;
 		if (pageOf) this.view = { kind: 'project', id: pageOf };
 		else if (!onThisPage) this.view = { kind: 'home' };
-		this.selected = target;
+		if (this.editingTemplate) this.templateGroup = groupForTarget(target) ?? this.templateGroup;
+		else this.selected = target;
 		if (lang) this.lang = lang;
 		requestAnimationFrame(() => {
 			const el = document.querySelector(`[data-target="${CSS.escape(target)}"]`);
@@ -583,6 +607,89 @@ export class Editor {
 	/** Abre en el panel la apariencia de la web (tema principal y temas para los visitantes). */
 	openAppearance() {
 		this.draft.appearance ??= normalizeAppearance(undefined);
+		this.selected = 'appearance';
+	}
+
+	// Plantillas propias
+
+	/** Hace principal una plantilla: sustituye a la anterior entre las que pueden elegir los visitantes. */
+	#makeMain(id: string) {
+		// Se asigna y se vuelve a leer: el valor de `??=` es el objeto sin envolver y sus cambios no se verían.
+		this.draft.appearance ??= normalizeAppearance(undefined);
+		const appearance = this.draft.appearance;
+		const others = appearance.choices.filter((c) => c !== appearance.theme);
+		appearance.theme = id;
+		appearance.choices = normalizeAppearance({ ...appearance, choices: [...others, id] }).choices;
+	}
+
+	#addTemplate(template: TemplateDef) {
+		this.draft.appearance ??= normalizeAppearance(undefined);
+		this.draft.appearance.templates ??= [];
+		this.draft.appearance.templates.push(template);
+		this.#makeMain(template.id);
+		this.template = template.id;
+		this.templateGroup = 'hero';
+		this.justCreated = template.id;
+		this.selected = 'appearance';
+	}
+
+	#templateNames(): string[] {
+		return (this.draft.appearance?.templates ?? []).map((t) => t.name);
+	}
+
+	/**
+	 * Edita una plantilla. Las de la web no se tocan: se crea una copia («Bruto - copia»), que pasa a
+	 * ser la principal, y se edita la copia. Las propias se editan directamente.
+	 */
+	editTemplate(id: string) {
+		if (isThemeId(id)) {
+			this.#addTemplate({
+				id: newTemplateId(),
+				name: copyName(THEMES[id].name.es, this.#templateNames()),
+				base: id,
+				values: {},
+				colors: {}
+			});
+			return;
+		}
+		if (!this.draft.appearance?.templates?.some((t) => t.id === id)) return;
+		this.template = id;
+		this.selected = 'appearance';
+	}
+
+	/** Copia de una plantilla propia, con todo lo que se le cambió. */
+	duplicateTemplate(id: string) {
+		const source = this.draft.appearance?.templates?.find((t) => t.id === id);
+		if (!source) return;
+		const { values, colors, base } = $state.snapshot(source);
+		this.#addTemplate({ id: newTemplateId(), name: copyName(source.name, this.#templateNames()), base, values, colors });
+	}
+
+	renameTemplate(id: string, name: string) {
+		const template = this.draft.appearance?.templates?.find((t) => t.id === id);
+		if (template) template.name = name;
+	}
+
+	/** Al salir del campo, un nombre vacío o con espacios de más se arregla. */
+	tidyTemplateName(id: string) {
+		const template = this.draft.appearance?.templates?.find((t) => t.id === id);
+		if (template) template.name = cleanName(template.name);
+	}
+
+	/** Quita una plantilla propia; si era la principal, vuelve la de la web en la que se basaba. */
+	deleteTemplate(id: string) {
+		const appearance = this.draft.appearance;
+		const template = appearance?.templates?.find((t) => t.id === id);
+		if (!appearance || !template) return;
+		if (appearance.theme === id) this.#makeMain(template.base);
+		appearance.choices = appearance.choices.filter((c) => c !== id);
+		appearance.templates = appearance.templates!.filter((t) => t.id !== id);
+		if (this.template === id) this.template = null;
+	}
+
+	finishTemplate() {
+		if (this.template) this.tidyTemplateName(this.template);
+		this.template = null;
 		this.selected = 'appearance';
 	}
 

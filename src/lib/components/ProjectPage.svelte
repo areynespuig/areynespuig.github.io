@@ -4,7 +4,7 @@
 	import './themes.css';
 	import LookPicker from './LookPicker.svelte';
 	import { syncLook } from '../content/look.svelte';
-	import { normalizeAppearance } from '../content/themes';
+	import { lookInfo, normalizeAppearance } from '../content/appearance';
 	import { LANGS, type L10n, type Lang, type Project, type ProjectPage, type SiteContent } from '../content/types';
 	import { LANG_NAMES, LANG_PATHS, UI, pick } from '../i18n';
 	import { hasText, paragraphs } from '../content/sections';
@@ -18,19 +18,23 @@
 		content,
 		project,
 		lang,
-		scheme
+		scheme,
+		previewLook
 	}: {
 		content: SiteContent;
 		project: Project & { page: ProjectPage };
 		lang: Lang;
 		/** Fuerza tema claro u oscuro (lo usa el editor). */
 		scheme?: 'light' | 'dark';
+		/** En el editor, la plantilla que se está editando; sin valor, la principal. */
+		previewLook?: string;
 	} = $props();
 
 	const editor = useEditor();
 	const editing = !!editor;
 	const ui = $derived(UI[lang]);
 	const appearance = $derived(normalizeAppearance(content.appearance));
+	const preview = $derived(lookInfo(appearance, previewLook ?? appearance.theme));
 	// En la web, el tema va en <html> (lo pone /theme.js antes de pintar); aquí se repite al abrir y
 	// cuando llega el contenido más reciente. En el editor, la vista previa lo lleva en el propio `.site`.
 	$effect(() => {
@@ -58,7 +62,13 @@
 	{#if missing(value)}<span class="missing">{ui.missing}</span>{:else}{text(value)}{/if}
 {/snippet}
 
-<div class={['site', editing && 'editing']} style:color-scheme={scheme} {lang} data-look={editing ? appearance.theme : undefined}>
+<div
+	class={['site', editing && 'editing']}
+	style:color-scheme={scheme}
+	{lang}
+	data-look={editing ? preview.base : undefined}
+	data-tpl={editing && preview.template ? preview.id : undefined}
+>
 	{#if !editing}
 		<a class="skip" href="#contenido">{ui.skip}</a>
 	{/if}
@@ -200,12 +210,12 @@
 		margin: 0;
 	}
 	.wrap {
-		width: min(100% - 2.5rem, 76rem);
+		width: min(100% - 2.5rem, var(--page-max, 76rem));
 		margin-inline: auto;
 	}
 	@container site (width >= 48rem) {
 		.wrap {
-			width: min(100% - 5rem, 76rem);
+			width: min(100% - 5rem, var(--page-max, 76rem));
 		}
 	}
 	.visually-hidden {
@@ -243,7 +253,7 @@
 
 	/* Cabecera, con el mismo tema que la portada */
 	.hero {
-		padding-block: 0 clamp(3rem, 7cqi, 5.5rem);
+		padding-block: 0 calc(clamp(3rem, 7cqi, 5.5rem) * var(--space, 1));
 		border-bottom: 1px solid var(--line);
 	}
 	.tools {
@@ -298,7 +308,7 @@
 		font-family: var(--font-display);
 		font-stretch: var(--display-stretch);
 		font-weight: var(--name-weight);
-		font-size: calc(var(--name-size) * 0.82);
+		font-size: calc(var(--name-size) * 0.82 * var(--name-scale, 1));
 		line-height: var(--name-leading);
 		letter-spacing: var(--name-tracking);
 		text-transform: var(--name-case);
@@ -309,7 +319,7 @@
 		margin-top: clamp(1.25rem, 3cqi, 2rem);
 		max-width: 44ch;
 		color: color-mix(in oklch, var(--ink) 82%, var(--paper));
-		font-size: clamp(1.2rem, 2.1cqi, 1.5rem);
+		font-size: calc(clamp(1.2rem, 2.1cqi, 1.5rem) * var(--lead-scale, 1));
 		line-height: 1.45;
 		letter-spacing: -0.01em;
 		text-wrap: pretty;
@@ -322,8 +332,8 @@
 		gap: 0.75rem 1.5rem;
 	}
 	.btn {
-		min-height: 48px;
-		padding: 0 1.35rem;
+		min-height: var(--btn-h, 48px);
+		padding: 0 var(--btn-px, 1.35rem);
 		display: inline-flex;
 		align-items: center;
 		border: var(--bw) solid var(--accent);
@@ -370,7 +380,7 @@
 	/* Bloques */
 	.body {
 		flex: 1;
-		padding-block: clamp(2.5rem, 6cqi, 5rem);
+		padding-block: calc(clamp(2.5rem, 6cqi, 5rem) * var(--space, 1));
 	}
 	.body :focus-visible {
 		outline: 3px solid var(--accent);

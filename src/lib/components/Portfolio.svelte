@@ -22,23 +22,27 @@
 	import './themes.css';
 	import LookPicker from './LookPicker.svelte';
 	import { syncLook } from '../content/look.svelte';
-	import { normalizeAppearance } from '../content/themes';
+	import { lookInfo, normalizeAppearance } from '../content/appearance';
 
 	let {
 		content,
 		lang,
-		scheme
+		scheme,
+		previewLook
 	}: {
 		content: SiteContent;
 		lang: Lang;
 		/** Fuerza tema claro u oscuro (lo usa el editor). Sin valor, sigue al sistema o a la elección del visitante. */
 		scheme?: 'light' | 'dark';
+		/** En el editor, la plantilla que se está editando; sin valor, la principal. */
+		previewLook?: string;
 	} = $props();
 
 	const editor = useEditor();
 	const editing = !!editor;
 	const ui = $derived(UI[lang]);
 	const appearance = $derived(normalizeAppearance(content.appearance));
+	const preview = $derived(lookInfo(appearance, previewLook ?? appearance.theme));
 	// En la web, el tema va en <html> (lo pone /theme.js antes de pintar); aquí se repite al abrir y
 	// cuando llega el contenido más reciente. En el editor, la vista previa lo lleva en el propio `.site`.
 	$effect(() => {
@@ -422,7 +426,13 @@
 	</section>
 {/snippet}
 
-<div class={['site', editing && 'editing']} style:color-scheme={scheme} lang={lang} data-look={editing ? appearance.theme : undefined}>
+<div
+	class={['site', editing && 'editing']}
+	style:color-scheme={scheme}
+	lang={lang}
+	data-look={editing ? preview.base : undefined}
+	data-tpl={editing && preview.template ? preview.id : undefined}
+>
 	{#if !editing}
 		<a class="skip" href="#contenido">{ui.skip}</a>
 	{/if}
@@ -578,13 +588,17 @@
 	.site :where(h1, h2, h3, p, ul, ol, figure) {
 		margin: 0;
 	}
+	/*
+	 * Las plantillas propias (templates.ts) cambian tamaños y posiciones con variables: --page-max,
+	 * --space, --name-scale, --hero-cols… Sin ellas, cada regla usa su valor de siempre.
+	 */
 	.wrap {
-		width: min(100% - 2.5rem, 76rem);
+		width: min(100% - 2.5rem, var(--page-max, 76rem));
 		margin-inline: auto;
 	}
 	@container site (width >= 48rem) {
 		.wrap {
-			width: min(100% - 5rem, 76rem);
+			width: min(100% - 5rem, var(--page-max, 76rem));
 		}
 	}
 	.visually-hidden {
@@ -760,29 +774,32 @@
 
 	/* Portada */
 	.hero {
-		padding-block: clamp(2.5rem, 7cqi, 6rem) clamp(4rem, 9cqi, 7.5rem);
+		padding-block: calc(clamp(2.5rem, 7cqi, 6rem) * var(--space, 1)) calc(clamp(4rem, 9cqi, 7.5rem) * var(--space, 1));
 	}
 	.hero-grid {
 		display: grid;
 		gap: 2.25rem;
 	}
 	.hero-photo {
+		display: var(--photo-display, block);
 		order: -1;
+		justify-self: var(--photo-justify, normal);
 	}
 	@container site (width >= 60rem) {
 		.hero-grid {
-			grid-template-columns: minmax(0, 1fr) auto;
-			align-items: end;
+			grid-template-columns: var(--hero-cols, minmax(0, 1fr) auto);
+			align-items: var(--hero-valign, end);
 			column-gap: 4rem;
 		}
 		.hero-photo {
-			order: 0;
+			order: var(--photo-order, 0);
 		}
 	}
 	.hero-text {
 		display: flex;
 		flex-direction: column;
-		align-items: flex-start;
+		align-items: var(--hero-items, flex-start);
+		text-align: var(--hero-text, start);
 	}
 	.status {
 		display: inline-flex;
@@ -828,7 +845,7 @@
 		font-family: var(--font-display);
 		font-stretch: var(--display-stretch);
 		font-weight: var(--name-weight);
-		font-size: var(--name-size);
+		font-size: calc(var(--name-size) * var(--name-scale, 1));
 		line-height: var(--name-leading);
 		letter-spacing: var(--name-tracking);
 		text-transform: var(--name-case);
@@ -841,7 +858,7 @@
 		margin-top: clamp(1.5rem, 3.5cqi, 2.4rem);
 		max-width: 32ch;
 		color: color-mix(in oklch, var(--ink) 82%, var(--paper));
-		font-size: clamp(1.25rem, 2.3cqi, 1.6rem);
+		font-size: calc(clamp(1.25rem, 2.3cqi, 1.6rem) * var(--lead-scale, 1));
 		line-height: 1.4;
 		letter-spacing: -0.012em;
 		text-wrap: pretty;
@@ -850,11 +867,12 @@
 		margin-top: clamp(2rem, 4cqi, 2.75rem);
 		display: flex;
 		flex-wrap: wrap;
+		justify-content: var(--hero-items, flex-start);
 		gap: 0.75rem;
 	}
 	.btn {
-		min-height: 48px;
-		padding: 0 1.35rem;
+		min-height: var(--btn-h, 48px);
+		padding: 0 var(--btn-px, 1.35rem);
 		display: inline-flex;
 		align-items: center;
 		gap: 0.55rem;
@@ -865,7 +883,7 @@
 		box-shadow: var(--shadow);
 		font-family: var(--font-ui);
 		font-weight: 600;
-		font-size: 0.975rem;
+		font-size: var(--btn-fs, 0.975rem);
 		text-decoration: none;
 		transition:
 			border-color 0.2s,
@@ -891,8 +909,9 @@
 	 * la mueve dentro. La capa intermedia permite animar la entrada sin tocar el encuadre.
 	 */
 	.photo {
-		--photo-w: clamp(8.5rem, 20cqi, 17rem);
+		--photo-w: calc(clamp(8.5rem, 20cqi, 17rem) * var(--photo-scale, 1));
 		width: var(--photo-w);
+		max-width: 100%;
 		max-height: calc(var(--photo-w) * 1.75);
 		border-radius: var(--radius-photo);
 		overflow: hidden;
@@ -907,7 +926,7 @@
 
 	/* Secciones */
 	.block {
-		padding-block: clamp(4rem, 9cqi, 7.5rem);
+		padding-block: calc(clamp(4rem, 9cqi, 7.5rem) * var(--space, 1));
 	}
 	.block + .block {
 		border-top: 1px solid var(--line);
@@ -921,7 +940,7 @@
 		font-family: var(--font-display);
 		font-stretch: var(--display-stretch);
 		font-weight: var(--h2-weight);
-		font-size: var(--h2-size);
+		font-size: calc(var(--h2-size) * var(--h2-scale, 1));
 		line-height: 1.04;
 		letter-spacing: var(--h2-tracking);
 		text-transform: var(--h2-case);
@@ -931,10 +950,10 @@
 	}
 	@container site (width >= 60rem) {
 		.block-grid {
-			grid-template-columns: 17rem minmax(0, 1fr);
+			grid-template-columns: var(--block-cols, var(--head-w, 17rem) minmax(0, 1fr));
 		}
 		.block-head {
-			position: sticky;
+			position: var(--head-pos, sticky);
 			top: 6rem;
 			align-self: start;
 		}
@@ -943,12 +962,15 @@
 		}
 		/* En la columna, una palabra larga reduce el título lo justo para caber (≈0,58 em por letra). */
 		.block-head h2 {
-			font-size: min(var(--h2-size), calc(17rem / (var(--chars, 1) * var(--glyph-w))));
+			font-size: min(
+				calc(var(--h2-size) * var(--h2-scale, 1)),
+				calc(var(--head-fit, var(--head-w, 17rem)) / (var(--chars, 1) * var(--glyph-w)))
+			);
 		}
 	}
 	.bio {
 		max-width: 40ch;
-		font-size: clamp(1.3rem, 2.2cqi, 1.65rem);
+		font-size: calc(clamp(1.3rem, 2.2cqi, 1.65rem) * var(--text-scale, 1));
 		line-height: 1.45;
 		letter-spacing: -0.012em;
 		text-wrap: pretty;
@@ -1074,7 +1096,7 @@
 		padding: 0;
 		display: grid;
 		gap: 1.25rem;
-		grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cards-min, 19rem)), 1fr));
 	}
 	.card {
 		height: 100%;
@@ -1092,7 +1114,7 @@
 	}
 	/* La imagen llena el recuadro (sin bandas); si es transparente, se ve sobre blanco. */
 	.card figure {
-		aspect-ratio: 16 / 9;
+		aspect-ratio: var(--card-ratio, 16 / 9);
 		overflow: hidden;
 		background: #fff;
 		border-bottom: var(--bw) solid var(--line);
@@ -1204,7 +1226,7 @@
 		flex-direction: column;
 		gap: 1em;
 		max-width: 62ch;
-		font-size: clamp(1.1rem, 1.6cqi, 1.2rem);
+		font-size: calc(clamp(1.1rem, 1.6cqi, 1.2rem) * var(--text-scale, 1));
 		text-wrap: pretty;
 	}
 	.prose p,
@@ -1215,7 +1237,7 @@
 		max-width: 62ch;
 		margin-bottom: 2rem;
 		color: color-mix(in oklch, var(--ink) 85%, var(--paper));
-		font-size: clamp(1.1rem, 1.6cqi, 1.2rem);
+		font-size: calc(clamp(1.1rem, 1.6cqi, 1.2rem) * var(--text-scale, 1));
 		text-wrap: pretty;
 	}
 	.after-text {

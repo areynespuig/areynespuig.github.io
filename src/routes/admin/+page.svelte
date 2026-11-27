@@ -13,7 +13,8 @@
 	import { LANGS } from '#lib/content/types.ts';
 	import { LANG_NAMES, LANG_PATHS } from '#lib/i18n.ts';
 	import { SITE } from '#lib/config.ts';
-	import { THEMES, normalizeAppearance } from '#lib/content/themes.ts';
+	import { lookInfo, normalizeAppearance } from '#lib/content/appearance.ts';
+	import TemplateStyles from '#lib/components/TemplateStyles.svelte';
 
 	/**
 	 * Dentro de un iframe de otra web, alguien podría tapar el editor y hacer que se pulse algo sin
@@ -24,7 +25,8 @@
 
 	const editor = new Editor();
 	provideEditor({
-		isSelected: (t) => editor.selected === t,
+		// Editando una plantilla, la vista previa no marca ningún texto: un clic abre las opciones de esa parte.
+		isSelected: (t) => !editor.editingTemplate && editor.selected === t,
 		isFlagged: (t) => editor.isFlagged(t),
 		select: (t) => editor.select(t),
 		add: (c) => editor.add(c),
@@ -49,7 +51,10 @@
 
 	const host = SITE.url.replace(/^https?:\/\//, '');
 	// Hay temas con un solo modo (Terminal y Medianoche solo oscuros; Suizo, Bruto, Riso y Bauhaus solo claros).
-	const modes = $derived(THEMES[normalizeAppearance(editor.draft.appearance).theme].schemes);
+	const appearance = $derived(normalizeAppearance(editor.draft.appearance));
+	/** En la vista previa: la plantilla que se edita o, si no, la principal. */
+	const previewLook = $derived(editor.editingTemplate?.id);
+	const modes = $derived(lookInfo(appearance, previewLook ?? appearance.theme).schemes);
 	const mode = $derived(modes.includes(editor.scheme) ? editor.scheme : modes[0]);
 	const modeHint = $derived(modes.length > 1 ? undefined : `Este tema solo tiene modo ${modes[0] === 'dark' ? 'oscuro' : 'claro'}`);
 	let stageWidth = $state(0);
@@ -70,6 +75,9 @@
 	<title>Editor del portafolio</title>
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
+
+<!-- Variables CSS de las plantillas propias del borrador: la vista previa cambia según se editan. -->
+<TemplateStyles templates={appearance.templates} />
 
 {#if framed}
 	<main class="framed">
@@ -143,9 +151,9 @@
 				</div>
 				<div class="viewport" style:width="{deviceWidth}px" style:zoom>
 					{#if editor.viewProject}
-						<ProjectPage content={editor.draft} project={editor.viewProject} lang={editor.lang} scheme={mode} />
+						<ProjectPage content={editor.draft} project={editor.viewProject} lang={editor.lang} scheme={mode} {previewLook} />
 					{:else}
-						<Portfolio content={editor.draft} lang={editor.lang} scheme={mode} />
+						<Portfolio content={editor.draft} lang={editor.lang} scheme={mode} {previewLook} />
 					{/if}
 				</div>
 			</div>

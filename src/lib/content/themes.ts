@@ -15,8 +15,15 @@ export interface ThemeInfo {
 	swatches: [string, string, string];
 	/** Versiones que tiene: los temas de una sola no muestran el botón de claro/oscuro. */
 	schemes: readonly ('light' | 'dark')[];
-	/** Familias de letra que usa: /theme.js y el selector las cargan antes de enseñar el tema. */
-	fonts: readonly string[];
+	/** Letra de cada papel: el texto, los títulos y los botones y menús. */
+	type: TypeRoles;
+}
+
+/** Familia de letra (como en @font-face) de cada papel. */
+export interface TypeRoles {
+	text: string;
+	display: string;
+	ui: string;
 }
 
 export const THEMES: Record<ThemeId, ThemeInfo> = {
@@ -25,80 +32,66 @@ export const THEMES: Record<ThemeId, ThemeInfo> = {
 		hint: 'Claro y sereno: porcelana, tinta verdinegra y acento pino. Albert Sans.',
 		swatches: ['#fafbfa', '#1e5b48', '#12201b'],
 		schemes: ['light', 'dark'],
-		fonts: ['Albert Sans Variable']
+		type: { text: 'Albert Sans Variable', display: 'Albert Sans Variable', ui: 'Albert Sans Variable' }
 	},
 	cobalto: {
 		name: { es: 'Cobalto', ca: 'Cobalt', en: 'Cobalt' },
 		hint: 'Portada con franja azul intenso y el nombre en mayúsculas condensadas.',
 		swatches: ['#f5f6f4', '#2346e8', '#111316'],
 		schemes: ['light', 'dark'],
-		fonts: ['Atkinson Hyperlegible Next Variable', 'Bricolage Grotesque Variable']
+		type: { text: 'Atkinson Hyperlegible Next Variable', display: 'Bricolage Grotesque Variable', ui: 'Atkinson Hyperlegible Next Variable' }
 	},
 	terminal: {
 		name: { es: 'Terminal', ca: 'Terminal', en: 'Terminal' },
 		hint: 'Oscuro, de desarrollador: letra monoespaciada en ámbar y cursor que parpadea.',
 		swatches: ['#12100c', '#ffb000', '#f2e8d5'],
 		schemes: ['dark'],
-		fonts: ['IBM Plex Sans Variable', 'JetBrains Mono Variable']
+		type: { text: 'IBM Plex Sans Variable', display: 'JetBrains Mono Variable', ui: 'JetBrains Mono Variable' }
 	},
 	suizo: {
 		name: { es: 'Suizo', ca: 'Suís', en: 'Swiss' },
 		hint: 'Tipografía suiza: blanco, negro y un solo rojo, sin esquinas redondeadas.',
 		swatches: ['#ffffff', '#e10600', '#000000'],
 		schemes: ['light'],
-		fonts: ['Archivo Variable']
+		type: { text: 'Archivo Variable', display: 'Archivo Variable', ui: 'Archivo Variable' }
 	},
 	bruto: {
 		name: { es: 'Bruto', ca: 'Brut', en: 'Brutal' },
 		hint: 'Neobrutalista: bordes negros gruesos, sombras duras, amarillo y azul.',
 		swatches: ['#f2f2ee', '#ffd400', '#2b59ff'],
 		schemes: ['light'],
-		fonts: ['Work Sans Variable', 'Unbounded Variable']
+		type: { text: 'Work Sans Variable', display: 'Unbounded Variable', ui: 'Work Sans Variable' }
 	},
 	riso: {
 		name: { es: 'Riso', ca: 'Riso', en: 'Riso' },
 		hint: 'Como una impresión a dos tintas, rosa y azul, con las capas desplazadas.',
 		swatches: ['#f7f5f2', '#ff4fa0', '#2d5bd6'],
 		schemes: ['light'],
-		fonts: ['Karla Variable', 'Syne Variable']
+		type: { text: 'Karla Variable', display: 'Syne Variable', ui: 'Karla Variable' }
 	},
 	bauhaus: {
 		name: { es: 'Bauhaus', ca: 'Bauhaus', en: 'Bauhaus' },
 		hint: 'Círculo, cuadrado y triángulo en rojo, amarillo y azul; letra geométrica.',
 		swatches: ['#f4f3ee', '#d62828', '#1d4e89'],
 		schemes: ['light'],
-		fonts: ['Jost Variable']
+		type: { text: 'Jost Variable', display: 'Jost Variable', ui: 'Jost Variable' }
 	},
 	contraste: {
 		name: { es: 'Alto contraste', ca: 'Alt contrast', en: 'High contrast' },
 		hint: 'Pensado para leer bien: negro y blanco, letra grande, sin animaciones.',
 		swatches: ['#ffffff', '#ffe500', '#000000'],
 		schemes: ['light', 'dark'],
-		fonts: ['Atkinson Hyperlegible Next Variable']
+		type: { text: 'Atkinson Hyperlegible Next Variable', display: 'Atkinson Hyperlegible Next Variable', ui: 'Atkinson Hyperlegible Next Variable' }
 	},
 	medianoche: {
 		name: { es: 'Medianoche', ca: 'Mitjanit', en: 'Midnight' },
 		hint: 'Oscuro y elegante: azul noche, serif fina con cursiva y detalles dorados.',
 		swatches: ['#0e1424', '#e2b65b', '#ece7dd'],
 		schemes: ['dark'],
-		fonts: ['Instrument Sans Variable', 'Fraunces Variable']
+		type: { text: 'Instrument Sans Variable', display: 'Fraunces Variable', ui: 'Instrument Sans Variable' }
 	}
 };
 
 export function isThemeId(value: unknown): value is ThemeId {
 	return typeof value === 'string' && (THEME_IDS as readonly string[]).includes(value);
-}
-
-/** Qué tema se ve por defecto y entre cuáles pueden elegir los visitantes. */
-export interface Appearance {
-	theme: ThemeId;
-	choices: ThemeId[];
-}
-
-/** La apariencia guardada, reparada: temas que existen, sin repetir y con el principal entre los elegibles. */
-export function normalizeAppearance(value: { theme?: unknown; choices?: unknown } | undefined): Appearance {
-	const theme = isThemeId(value?.theme) ? value.theme : 'pino';
-	const listed = Array.isArray(value?.choices) ? value.choices.filter(isThemeId) : [];
-	const choices = THEME_IDS.filter((id) => id === theme || listed.includes(id));
-	return { theme, choices };
 }

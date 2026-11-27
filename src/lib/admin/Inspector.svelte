@@ -3,6 +3,7 @@
 	import type { CustomSection } from '../content/types';
 	import type { Editor } from './editor.svelte';
 	import FieldEditor from './FieldEditor.svelte';
+	import TemplateEditor from './TemplateEditor.svelte';
 	import { sectionList } from './schema';
 
 	let { editor }: { editor: Editor } = $props();
@@ -20,7 +21,9 @@
 </script>
 
 <aside class="insp" aria-labelledby="insp-title">
-	{#if info}
+	{#if editor.editingTemplate}
+		<TemplateEditor {editor} />
+	{:else if info}
 		<div class="head">
 			<p class="sec">
 				{info.target === 'appearance'

@@ -1,6 +1,7 @@
 // Aplica el tema claro/oscuro y el tema de la web antes de pintar, para que no parpadeen.
 // Va en un archivo aparte (y no dentro del HTML) para que la política de seguridad (CSP) pueda prohibir los scripts en línea.
 // El tema de la web lo dice la propia página (<meta name="site-look">): el principal y los que puede elegir el visitante.
+// Una plantilla propia lleva data-base-<id> (la plantilla de la web en la que se basa); sus variables van en data-tpl.
 (function () {
 	function stored(key) {
 		try {
@@ -18,7 +19,10 @@
 		const choices = (meta.getAttribute('data-choices') || '').split(' ');
 		const pick = stored('look');
 		const look = pick && choices.includes(pick) ? pick : meta.getAttribute('content');
-		root.dataset.look = look;
+		const base = meta.getAttribute('data-base-' + look);
+		root.dataset.look = base || look;
+		if (base) root.dataset.tpl = look;
+		else delete root.dataset.tpl;
 		// Pide ya la letra del tema (alfabeto latino). Las fuentes van con font-display: block, así que
 		// el texto espera a su letra en vez de salir con otra y cambiar después.
 		const families = (meta.getAttribute('data-fonts-' + look) || '').split(',');
